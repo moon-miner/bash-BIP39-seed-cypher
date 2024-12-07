@@ -1,3 +1,50 @@
+Changes V3 to V4:
+
+Security Enhancements
+
+Added cleanup function with EXIT trap to ensure sensitive variables are properly cleared
+Improved secure handling of password variables
+Enhanced file permission management
+
+Code Quality Improvements
+
+Added explicit constant definitions for exit codes and permissions
+Implemented explicit variable typing for arrays and integers
+Improved local variable scope management throughout the script
+Standardized variable naming convention to snake_case
+Enhanced parameter handling and validation
+Added more robust path handling using basename
+Improved string interpolation and quote usage
+
+Performance Optimizations
+
+Replaced echo with printf where appropriate for better output control
+Implemented mapfile with process substitution for more efficient array handling
+Optimized array operations and variable assignments
+
+Error Handling
+
+Enhanced input validation and error checking
+Improved error messages and debugging capabilities
+Added more comprehensive parameter validation
+
+Documentation
+
+Added detailed comments for complex operations
+Improved function documentation
+Enhanced usage instructions and examples
+
+Maintenance
+
+Standardized code formatting
+Improved overall code readability
+Added version tracking
+
+Note: This update maintains full compatibility with previous versions while improving security, reliability, and maintainability of the script.
+
+
+----------------------------------------------------------------------
+
 Changes from V2 to V3:
 
 coded seeds with V1 and V2 are still compatible with V3
