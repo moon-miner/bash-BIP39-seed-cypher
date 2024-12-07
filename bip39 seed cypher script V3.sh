@@ -298,6 +298,9 @@ process_words() {
 
 # Main function
 main() {
+    # Show usage if no arguments provided
+    [[ $# -eq 0 ]] && show_usage
+
     local OUTPUT_FILE=""
 
     # Process arguments except password
