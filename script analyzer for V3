@@ -1,0 +1,154 @@
+import subprocess
+import numpy as np
+from collections import Counter, defaultdict
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm
+import pandas as pd
+from scipy import stats
+
+class DistributionAnalyzer:
+    def __init__(self, bash_script_path):
+        self.bash_script_path = bash_script_path
+        self.test_seed = [
+            "ribbon", "slight", "frog", "oxygen", "range",
+            "slam", "destroy", "dune", "fossil", "slow",
+            "decrease", "primary", "hint", "loan", "limb",
+            "palm", "act", "reward", "foot", "deposit",
+            "response", "fashion", "under", "sail"
+        ]
+        self.num_positions = len(self.test_seed)
+
+    def run_cipher(self, password):
+        """Ejecuta el script de cifrado con entrada interactiva del password"""
+        cmd = [self.bash_script_path] + self.test_seed
+        try:
+            # Crear el proceso con pipe para stdin
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            # Enviar el password al proceso
+            stdout, stderr = process.communicate(input=f"{password}\n")
+
+            if process.returncode == 0:
+                return stdout.strip().split()
+            return None
+        except:
+            return None
+
+    def generate_test_passwords(self, n=1000):
+        """Genera contraseñas de prueba"""
+        base = "TestPassword123"
+        passwords = []
+        for i in range(n):
+            # Modificar un carácter aleatorio
+            pos = np.random.randint(0, len(base))
+            new_char = chr(np.random.randint(33, 127))  # Caracteres ASCII imprimibles
+            pw = base[:pos] + new_char + base[pos+1:]
+            passwords.append(pw)
+        return passwords
+
+    def analyze_distribution(self, n_tests=1000):
+        """Analiza la distribución de palabras"""
+        print(f"Iniciando análisis de distribución con {n_tests} pruebas...")
+
+        # Estructuras para almacenar datos
+        position_words = defaultdict(Counter)  # Palabras por posición
+        word_counts = Counter()  # Conteo global de palabras
+        word_positions = defaultdict(list)  # Posiciones donde aparece cada palabra
+
+        # Generar y probar contraseñas
+        passwords = self.generate_test_passwords(n_tests)
+        results = []
+
+        for pw in tqdm(passwords, desc="Procesando contraseñas"):
+            result = self.run_cipher(pw)
+            if result:
+                results.append(result)
+                # Actualizar contadores
+                for pos, word in enumerate(result):
+                    position_words[pos][word] += 1
+                    word_counts[word] += 1
+                    word_positions[word].append(pos)
+
+        # Análisis de distribución por posición
+        position_entropy = {}
+        for pos in range(self.num_positions):
+            counts = position_words[pos]
+            total = sum(counts.values())
+            if total > 0:
+                probs = [count/total for count in counts.values()]
+                entropy = -sum(p * np.log2(p) for p in probs)
+                position_entropy[pos] = entropy
+
+        # Análisis de uniformidad
+        chi_square_results = {}
+        for pos in range(self.num_positions):
+            counts = list(position_words[pos].values())
+            if counts:
+                expected = np.mean(counts)
+                chi2, p_value = stats.chisquare(counts)
+                chi_square_results[pos] = {
+                    'chi2': chi2,
+                    'p_value': p_value
+                }
+
+        # Visualizaciones
+        self.plot_distributions(position_words, position_entropy, word_counts)
+
+        # Resultados estadísticos
+        print("\n=== Análisis de Distribución ===")
+        print(f"Total de pruebas exitosas: {len(results)}")
+        print(f"\nEntropía promedio por posición: {np.mean(list(position_entropy.values())):.4f}")
+        print(f"Desviación estándar de entropía: {np.std(list(position_entropy.values())):.4f}")
+
+        # Análisis de uniformidad
+        print("\nPrueba de uniformidad (Chi-cuadrado):")
+        for pos, result in chi_square_results.items():
+            print(f"Posición {pos}: p-value = {result['p_value']:.4f}")
+
+        # Análisis de palabras más comunes
+        print("\nPalabras más frecuentes (top 10):")
+        for word, count in word_counts.most_common(10):
+            positions = word_positions[word]
+            avg_pos = np.mean(positions)
+            std_pos = np.std(positions)
+            print(f"'{word}': {count} veces, Pos. promedio: {avg_pos:.1f} ± {std_pos:.1f}")
+
+    def plot_distributions(self, position_words, position_entropy, word_counts):
+        """Genera visualizaciones de la distribución"""
+        # 1. Heatmap de distribución de palabras por posición
+        plt.figure(figsize=(15, 8))
+        data = []
+        for pos in range(self.num_positions):
+            counts = position_words[pos]
+            data.append([counts[word] for word in word_counts.most_common(20)])
+
+        sns.heatmap(data, cmap='YlOrRd')
+        plt.title('Distribución de Palabras por Posición (Top 20 palabras)')
+        plt.xlabel('Palabras más comunes')
+        plt.ylabel('Posición')
+        plt.tight_layout()
+        plt.savefig('word_distribution_heatmap.png')
+        plt.close()
+
+        # 2. Entropía por posición
+        plt.figure(figsize=(12, 6))
+        positions = list(position_entropy.keys())
+        entropies = list(position_entropy.values())
+        plt.bar(positions, entropies)
+        plt.title('Entropía por Posición')
+        plt.xlabel('Posición')
+        plt.ylabel('Entropía')
+        plt.tight_layout()
+        plt.savefig('position_entropy.png')
+        plt.close()
+
+if __name__ == "__main__":
+    analyzer = DistributionAnalyzer('./script.sh')
+    analyzer.analyze_distribution(1000)
