@@ -2172,6 +2172,7 @@ done
 # Guardar en archivo si se especificó -f
 if [[ -n "$OUTPUT_FILE" ]]; then
     echo "$OUTPUT" > "$OUTPUT_FILE"
+    echo "$OUTPUT"
     echo "Salida guardada en $OUTPUT_FILE"
 else
     echo "$OUTPUT"
