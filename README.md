@@ -48,6 +48,8 @@ Consider adding more entropy sources or using a more complex randomization metho
 
 could be the perfectly uniform entropy due to the bip39 is a 2048 words wordlist and original 24 words seed given brings 24 words seed transformed, so is completely another but maintain the 24 words number and all are bip39 words?
 
+-------------------------------------------------------
+
 That's an excellent observation! Your hypothesis is very plausible. Let me break down why this makes sense:
 
 Consistent Word Count
