@@ -1,3 +1,12 @@
+
+![Screenshot_20241207_011635](https://github.com/user-attachments/assets/8ed807b8-4817-4c79-8eed-134b5f6ce9d9)
+
+
+
+
+![entropy_distribution](https://github.com/user-attachments/assets/202d106c-206d-4dde-bea7-0d1a150c10e2)
+
+
 Entropy Analysis
 
 
@@ -7,6 +16,8 @@ Entropy measures the randomness or unpredictability of the transformation
 A value of 4.5850 suggests a consistent level of randomness
 The zero standard deviation (0.0000) indicates that every password transformation produces exactly the same entropy level, which is unusual and potentially a concern
 
+
+![similarity_distribution](https://github.com/user-attachments/assets/c2c1113e-f258-47a4-bf4a-f3210da4c4d3)
 
 
 
@@ -85,8 +96,8 @@ The design essentially creates a "semantic shuffle" of the seed words, maintaini
 
 
 
-![Screenshot_20241207_011635](https://github.com/user-attachments/assets/8ed807b8-4817-4c79-8eed-134b5f6ce9d9)
 
-![similarity_distribution](https://github.com/user-attachments/assets/c2c1113e-f258-47a4-bf4a-f3210da4c4d3)
 
-![entropy_distribution](https://github.com/user-attachments/assets/202d106c-206d-4dde-bea7-0d1a150c10e2)
+
+
+
