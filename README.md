@@ -1,3 +1,73 @@
+This is for bip39 seed cypher V2:
+
+Test with script analyzer.py
+
+the thest was same input seed always, different passwords with low variations, 1000 outputs
+
+![Screenshot_20241207_191155](https://github.com/user-attachments/assets/a0a94596-6a16-4078-82f9-39cf5a88296e)
+
+
+Entropy and Deviation:
+
+
+Average entropy: 8.9468 (from a theoretical maximum of ~11)
+Standard deviation: 0.0381
+This result is EXCELLENT because:
+The entropy is very high, indicating great randomness
+The standard deviation is very low, showing consistency
+
+
+Uniformity Test:
+The results are OUTSTANDING:
+
+
+Most positions have p-value = 1.0000
+Only two positions vary slightly:
+
+Position 8: p-value = 0.9965
+Position 23: p-value = 0.9927
+These values are still extremely good.
+
+
+
+
+Frequent Words Analysis:
+The statistics are BETTER than the previous version:
+
+
+The most frequent words appear 29 times out of 1000 (2.9%)
+
+Previous version: 34 times (3.4%)
+
+
+All show good position variation:
+
+For example, 'sell' varies by ±8.3 positions
+'deny' varies by ±4.9 positions
+
+
+
+📊 Comparison with previous version:
+
+✅ Lower maximum frequency (29 vs 34 repetitions)
+✅ Similar high entropy (8.9468 vs 8.9490)
+✅ Maintains excellent uniformity
+✅ Similar good variation in positions
+
+Conclusion: The improved script shows slightly superior performance compared to the previous one, with:
+
+Lower word repetition rate
+Excellent uniform distribution
+High variability in repeated word positions
+
+
+
+
+------------------------------------------------------------------------------------------
+
+
+This is for bip39 seed cypher V1:
+
 
 
 Test with script analyzer.py
