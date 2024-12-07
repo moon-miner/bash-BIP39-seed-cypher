@@ -65,6 +65,8 @@ The distribution is almost perfectly uniform (p-values of 1.0)
 
 Test with stats analyzer.py
 
+the thest was same input seed always, different passwords with low variations, 1000 outputs
+
 
 
 ![Screenshot_20241207_011635](https://github.com/user-attachments/assets/8ed807b8-4817-4c79-8eed-134b5f6ce9d9)
