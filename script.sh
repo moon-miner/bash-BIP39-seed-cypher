@@ -2107,46 +2107,40 @@ if [[ -n "$OUTPUT_FILE" && "$OUTPUT_FILE" != *.txt ]]; then
     OUTPUT_FILE="$OUTPUT_FILE.txt"
 fi
 
-# Función para mezclar las palabras basadas en la contraseña
+# Función para mezclar las palabras fuertemente utilizando la contraseña
 mix_words() {
     local password="$1"
     local size=${#WORDS[@]}
     local hash=$(echo -n "$password" | sha256sum | awk '{print $1}')
 
-    # Usamos todo el hash para variar más los índices
-    local seed=$(( 0x${hash:0:8} % size ))
-    local seed2=$(( 0x${hash:8:8} % size ))  # Segundo "semilla" basado en el resto del hash
-    local indices=($(seq 0 $((size-1))))
+    # Usar un generador de números aleatorios basado en el hash de la contraseña
+    local random_seed=$(( 0x${hash:0:8} ))
 
-    # Mezclar los índices con dos semillas
-    for ((i=0; i<size; i++)); do
-        local j=$(( (seed + i + seed2) % size ))
-        # Intercambiar los índices
-        local temp="${indices[i]}"
-        indices[i]="${indices[j]}"
-        indices[j]="$temp"
+    # Copiar y mezclar fuertemente las palabras de la lista
+    local shuffled_words=("${WORDS[@]}")
+
+    # Mezclar las palabras utilizando el generador de números aleatorios
+    for ((i = size - 1; i > 0; i--)); do
+        local j=$(( (random_seed + i) % (i + 1) ))
+        local temp="${shuffled_words[i]}"
+        shuffled_words[i]="${shuffled_words[j]}"
+        shuffled_words[j]="$temp"
     done
 
-    # Mezclar las palabras
-    local mixed_words=()
-    for i in "${indices[@]}"; do
-        mixed_words+=("${WORDS[i]}")
-    done
-
-    echo "${mixed_words[@]}"
+    echo "${shuffled_words[@]}"
 }
 
 # Obtener la lista de palabras mezcladas usando la contraseña
 MIXED_WORDS=($(mix_words "$PASSWORD"))
 
-# Dividir las palabras mezcladas en dos mitades
+# Crear una tabla de pares (palabra1 -> palabra2)
+declare -A mapping
 HALF_SIZE=$(( ${#MIXED_WORDS[@]} / 2 ))
 FIRST_HALF=("${MIXED_WORDS[@]:0:$HALF_SIZE}")
 SECOND_HALF=("${MIXED_WORDS[@]:$HALF_SIZE}")
 
-# Crear un mapeo de las palabras
-declare -A mapping
-for ((i=0; i<$HALF_SIZE; i++)); do
+# Crear el mapeo de las palabras
+for ((i = 0; i < $HALF_SIZE; i++)); do
     mapping["${FIRST_HALF[i]}"]="${SECOND_HALF[i]}"
     mapping["${SECOND_HALF[i]}"]="${FIRST_HALF[i]}"
 done
