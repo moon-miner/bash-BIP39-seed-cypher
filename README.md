@@ -1,3 +1,34 @@
+Changes from V2 to V3:
+
+coded seeds with V1 and V2 are still compatible with V3
+
+The main improvements are:
+
+Password security:
+
+Removed -p flag
+Password is now requested interactively and not displayed while typing
+Cleaning of sensitive variables in memory
+
+
+Technical improvements:
+
+Bash version check (4.0+)
+Better handling of associative arrays
+More robust error handling
+
+
+Documentation:
+
+Updated help messages
+Clearer usage examples
+
+
+
+The main improvement is password security, preventing it from being exposed in command history or command line.
+
+------------------------------------------------------
+
 Changes from V1 to V2:
 
 coded seeds with V1 are still compatible with V2
