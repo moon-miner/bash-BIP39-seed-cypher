@@ -94,6 +94,9 @@ The transformation preserves the seed's structural integrity while making it unr
 The design essentially creates a "semantic shuffle" of the seed words, maintaining BIP39 compliance while making the original seed unreadable without the password.
 
 
+Reversibility test:
+
+![Screenshot_20241207_090259](https://github.com/user-attachments/assets/cd3ef61f-8b23-4d59-b2c8-6287cfcd79cd)
 
 
 
