@@ -2054,7 +2054,7 @@ zoo
 
 # Validar que haya al menos la contraseña y palabras de entrada
 if [[ "$#" -lt 2 || "$1" != "-p" ]]; then
-    echo "Usage: $0 -p 'password' -f 'output filename' word1 word2 word3 ... | seedfile.txt"
+    echo "Usage: $0 -p 'password' -f 'output filename' [word1 word2 word3 ... | seedfile.txt]"
     echo ""
     echo "Examples:"
     echo "              $0 -p password1 -f mycodedseed word1 word2 word3 ..."
@@ -2086,77 +2086,98 @@ fi
 PASSWORD="$2"
 shift 2
 
-# Variables para las palabras de entrada y el archivo de salida
-INPUT_WORDS=()
+# Variable para el archivo de salida
 OUTPUT_FILE=""
 
-# Procesar argumentos
+# Verificar si se pasa el argumento -f antes de las palabras
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
-        -f)  # Si encontramos -f, tomamos el siguiente argumento como el nombre del archivo
+        -f)
             OUTPUT_FILE="$2"
             shift 2
             ;;
-        *)  # El resto de los argumentos pueden ser un archivo de entrada o palabras
-            if [[ -f "$1" ]]; then
-                # Si el argumento es un archivo, leemos las palabras del archivo
-                INPUT_WORDS=($(cat "$1"))
-            else
-                # Si no es un archivo, lo tratamos como una palabra de entrada
-                INPUT_WORDS+=("$1")
-            fi
-            shift
+        *)
+            break
             ;;
     esac
 done
 
-# Crear mapeo determinista
-create_mapping() {
-    local password="$1"
-    local max=${#WORDS[@]}
-    local indices=($(seq 0 $((max-1))))
-    local hash=$(echo -n "$password" | cksum | awk '{print $1}')
+# Asegurarse de que el archivo de salida tenga la extensión .txt
+if [[ -n "$OUTPUT_FILE" && "$OUTPUT_FILE" != *.txt ]]; then
+    OUTPUT_FILE="$OUTPUT_FILE.txt"
+fi
 
-    # Mezclar los índices de manera determinista
-    for ((i=0; i<max; i++)); do
-        local j=$(( (hash + i) % max ))
-        # Intercambiar índices
+# Función para mezclar las palabras basadas en la contraseña
+mix_words() {
+    local password="$1"
+    local size=${#WORDS[@]}
+    local hash=$(echo -n "$password" | sha256sum | awk '{print $1}')
+    local seed=$(( 0x${hash:0:8} % size ))
+
+    # Crear una lista de índices
+    local indices=($(seq 0 $((size-1))))
+
+    # Mezclar los índices
+    for ((i=0; i<size; i++)); do
+        local j=$(( (seed + i) % size ))
+        # Intercambiar los índices
         local temp="${indices[i]}"
         indices[i]="${indices[j]}"
         indices[j]="$temp"
     done
 
-    # Crear pares
-    declare -A mapping
-    for ((i=0; i<max/2; i++)); do
-        mapping["${WORDS[indices[i]]}"]="${WORDS[indices[i + max/2]]}"
-        mapping["${WORDS[indices[i + max/2]]}"]="${WORDS[indices[i]]}"
+    # Mezclar las palabras
+    local mixed_words=()
+    for i in "${indices[@]}"; do
+        mixed_words+=("${WORDS[i]}")
     done
-    echo "$(declare -p mapping)"
+
+    echo "${mixed_words[@]}"
 }
 
-# Generar el mapeo
-eval "$(create_mapping "$PASSWORD")"
+# Obtener la lista de palabras mezcladas usando la contraseña
+MIXED_WORDS=($(mix_words "$PASSWORD"))
+
+# Dividir las palabras mezcladas en dos mitades
+HALF_SIZE=$(( ${#MIXED_WORDS[@]} / 2 ))
+FIRST_HALF=("${MIXED_WORDS[@]:0:$HALF_SIZE}")
+SECOND_HALF=("${MIXED_WORDS[@]:$HALF_SIZE}")
+
+# Crear un mapeo de las palabras
+declare -A mapping
+for ((i=0; i<$HALF_SIZE; i++)); do
+    mapping["${FIRST_HALF[i]}"]="${SECOND_HALF[i]}"
+    mapping["${SECOND_HALF[i]}"]="${FIRST_HALF[i]}"
+done
 
 # Procesar las palabras de entrada
+INPUT_WORDS=()
+
+# Leer palabras de entrada
+while [[ "$#" -gt 0 ]]; do
+    if [[ -f "$1" ]]; then
+        INPUT_WORDS+=($(cat "$1"))
+    else
+        INPUT_WORDS+=("$1")
+    fi
+    shift
+done
+
+# Cifrar/desencriptar las palabras
 OUTPUT=""
 for word in "${INPUT_WORDS[@]}"; do
     if [[ -n "${mapping[$word]}" ]]; then
         OUTPUT+=" ${mapping[$word]}"
     else
-        echo "'$word' is not in BIP39 wordlist" >&2
+        echo "$word isn't in BIP39 wordlist, check the spell" >&2
         exit 1
     fi
 done
 
-# Mostrar resultado en pantalla
-echo "$OUTPUT"
-
-# Si se especificó un archivo de salida, guardamos el resultado
+# Guardar en archivo si se especificó -f
 if [[ -n "$OUTPUT_FILE" ]]; then
-    if [[ "$OUTPUT_FILE" != *.txt ]]; then
-        OUTPUT_FILE="${OUTPUT_FILE}.txt"
-    fi
     echo "$OUTPUT" > "$OUTPUT_FILE"
-    echo "Salida guardada en '$OUTPUT_FILE'."
+    echo "Salida guardada en $OUTPUT_FILE"
+else
+    echo "$OUTPUT"
 fi
