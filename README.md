@@ -1,3 +1,64 @@
+Changes from V1 to V2:
+
+Code Structure and Organization:
+
+
+Better organized code with modular functions
+Improved variable naming and scope management
+Clearer separation of concerns between functions
+More consistent code formatting
+
+
+Security Improvements:
+
+
+Added file permission restrictions (chmod 600) for output files
+Better password validation
+Improved file handling and error checking
+Added directory write permission validation
+
+
+Input Handling:
+
+
+More robust command-line argument parsing
+Better validation of input parameters
+Improved error messages and handling
+Better handling of input files
+
+
+Enhanced Functions:
+
+
+Improved word mixing algorithm with better randomization
+More efficient word mapping implementation
+Better memory management with local variables
+Added input validation functions
+
+
+Documentation:
+
+
+Better organized help messages
+Improved usage documentation
+Added parameter descriptions
+Better commented code
+
+
+Array Management:
+
+
+More efficient array handling
+Better implementation of the BIP39 wordlist
+Improved word mapping and processing
+
+Overall, V2 is more secure, robust, and maintainable while maintaining the same core functionality as V1. The improvements focus on better code organization, security, and error handling while making the script more reliable and user-friendly.
+
+-----------------------------------------------------------
+
+Analysis:
+
+
 This is for bip39 seed cypher V2:
 
 Test with script analyzer.py
