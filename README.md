@@ -1,5 +1,7 @@
 Changes from V1 to V2:
 
+coded seeds with V1 are still compatible with V2
+
 Code Structure and Organization:
 
 
