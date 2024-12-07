@@ -1,4 +1,72 @@
 
+
+Test with script analyzer.py
+
+the thest was same input seed always, different passwords with low variations, 1000 outputs
+
+![Screenshot_20241207_154756](https://github.com/user-attachments/assets/8b6e799d-8dbf-462d-b7c0-ad89d5a11227)
+
+asked to AI:
+
+The Python analyzer script gave me these results, could you explain what they mean? What I need is for the words within the results to repeat as little as possible, and if they do repeat, they should be in different positions.
+
+Response:
+
+I'll explain the results and evaluate if they meet your objective:
+
+Entropy and Deviation:
+
+
+Average entropy: 8.9490 (from a theoretical maximum of ~11)
+Standard deviation: 0.0307 (very low)
+This is VERY GOOD because:
+High entropy indicates great randomness in distribution
+Low standard deviation means this randomness is consistent across all positions
+
+
+Uniformity Test (p-values of 1.0000):
+These values are EXCELLENT because:
+
+
+A p-value close to 1.0 indicates a highly uniform distribution
+All positions have 1.0000 (except the last one with 0.9996)
+This means words are distributed very uniformly across all positions
+
+
+Frequent Words Analysis:
+Let's look at the most repeated word ('step'):
+
+
+Appeared 34 times in 1000 tests (only 3.4% of the time)
+Average position: 10.4 ± 7.3
+The deviation of ±7.3 positions indicates it appears in very different positions
+
+For your specific objective:
+✅ Low word repetition:
+
+The most frequent word only appeared 34 times out of 1000 (3.4%)
+Only 10 words appeared more than 26 times (2.6%)
+
+✅ Different positions:
+
+All frequent words have high standard deviations (±4.6 to ±8.0)
+For example, 'step' appeared in positions that vary by ±7.3 positions
+
+📊 In summary: Your script is working EXTREMELY WELL because:
+
+Words repeat very rarely (maximum 3.4%)
+When they do repeat, they appear in very different positions
+The distribution is almost perfectly uniform (p-values of 1.0)
+
+
+---------------------------------------------------------------------------------------------
+
+
+
+Test with stats analyzer.py
+
+
+
 ![Screenshot_20241207_011635](https://github.com/user-attachments/assets/8ed807b8-4817-4c79-8eed-134b5f6ce9d9)
 
 
