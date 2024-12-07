@@ -2112,14 +2112,15 @@ mix_words() {
     local password="$1"
     local size=${#WORDS[@]}
     local hash=$(echo -n "$password" | sha256sum | awk '{print $1}')
-    local seed=$(( 0x${hash:0:8} % size ))
 
-    # Crear una lista de índices
+    # Usamos todo el hash para variar más los índices
+    local seed=$(( 0x${hash:0:8} % size ))
+    local seed2=$(( 0x${hash:8:8} % size ))  # Segundo "semilla" basado en el resto del hash
     local indices=($(seq 0 $((size-1))))
 
-    # Mezclar los índices
+    # Mezclar los índices con dos semillas
     for ((i=0; i<size; i++)); do
-        local j=$(( (seed + i) % size ))
+        local j=$(( (seed + i + seed2) % size ))
         # Intercambiar los índices
         local temp="${indices[i]}"
         indices[i]="${indices[j]}"
