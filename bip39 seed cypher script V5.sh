@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 
 # System Requirements:
 # - Bash 4.0 or higher (for associative arrays)
@@ -455,11 +455,14 @@ main() {
     password=$(read_secure_password)
 
     # Read input words
-    local file_words
     while [[ "$#" -gt 0 ]]; do
         if [[ -f "$1" ]]; then
-            mapfile -t file_words < "$1"
-            input_words+=("${file_words[@]}")
+            # Leer el archivo y separar en palabras
+            while read -r line; do
+                # Dividir la línea en palabras y añadirlas al array
+                read -ra words <<< "$line"
+                input_words+=("${words[@]}")
+            done < "$1"
         else
             input_words+=("$1")
         fi
