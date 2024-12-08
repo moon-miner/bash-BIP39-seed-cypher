@@ -1,3 +1,30 @@
+Changes V4 to V5
+
+Added:
+- Cross-platform compatibility for Linux, macOS, and Windows
+- Automatic detection and handling of GNU coreutils on different OS
+- System requirements verification
+- Terminal capability checks
+- Enhanced help documentation with detailed examples
+- Security input validation
+
+Improved:
+- Function documentation and code organization
+- Error handling and user feedback
+- Password security checks
+- File permission handling
+- Terminal output formatting
+- Cross-platform line ending handling
+
+Technical Requirements:
+- Bash 4.0 or higher
+- GNU coreutils (sha256sum)
+- Standard POSIX utilities
+- UTF-8 terminal support
+
+
+-----------------------------------------
+
 Changes V3 to V4:
 
 Security Enhancements
