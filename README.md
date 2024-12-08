@@ -72,7 +72,7 @@ Word frequency: Max 1.5% occurrence
 ./scypher.sh -p mypassword word1 word2 word3
 
 # Process words from file and save to a file
-./scypher.sh -f output.txt input_seed.txt
+./scypher.sh -f output_file input_seed.txt
 ```
 
 ## 📋 Requirements
