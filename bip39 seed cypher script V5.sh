@@ -1,4 +1,5 @@
- #!/bin/bash
+ 
+#!/bin/bash
 
 # System Requirements:
 # - Bash 4.0 or higher (for associative arrays)
@@ -261,10 +262,16 @@ read_secure_password() {
     printf "%s" "$password"
 }
 
+# Function to validate password
+validate_password() {
+    local password="$1"
+    if [[ ${#password} -lt ${MIN_PASSWORD_LENGTH} ]]; then
+        echo "Error: Password must be at least ${MIN_PASSWORD_LENGTH} characters long" >&2
+        exit "${EXIT_ERROR}"
+    fi
+}
+
 # Function to display usage information and ASCII art
-# Arguments: None
-# Returns: None
-# Description: Shows detailed usage information, examples, and requirements
 show_usage() {
     local script_name
     script_name=$(basename "$0")
@@ -273,7 +280,7 @@ show_usage() {
 BIP39 Word Mixer - A tool to encode/decode BIP39 seed phrases
 
 Usage:
-    ${script_name} [-f OUTPUT_FILE] [WORD1 WORD2 ... | SEEDFILE]
+    ${script_name} [-f OUTPUT_FILE] [-p PASSWORD] [WORD1 WORD2 ... | SEEDFILE]
     ${script_name} -h | --help
 
 Description:
@@ -282,22 +289,23 @@ Description:
 
 Parameters:
     -f OUTPUT_FILE    Optional. Save output to specified file (will append .txt if needed)
+    -p PASSWORD       Optional. Specify password directly (if not used, will prompt securely)
     -h, --help       Show this help message and exit
     WORDS            Space-separated BIP39 words
     SEEDFILE         Text file containing BIP39 words (one per line)
 
 Examples:
-    # Encode/Decode three words and display result
+    # Encode/Decode three words and display result (will prompt for password)
     ${script_name} abandon ability able
+
+    # Encode/Decode words with password specified
+    ${script_name} -p mypassword abandon ability able
 
     # Encode/Decode words and save to file
     ${script_name} -f my_encoded_seed abandon ability able
 
-    # Encode/Decode words from file
-    ${script_name} my_seed_phrase.txt
-
-    # Encode/Decode to specific output file from input file
-    ${script_name} -f encoded_output.txt input_seed.txt
+    # Encode/Decode words from file with password
+    ${script_name} -p mypassword my_seed_phrase.txt
 
 System Requirements:
     - Bash ${MIN_BASH_VERSION}.0 or higher
@@ -309,9 +317,10 @@ System Requirements:
 
 Security Notes:
     - The output file permissions are set to ${PERMISSIONS} (user read/write only)
-    - Password is read securely without echo
+    - When -p is not used, password is read securely without echo
     - Memory is cleared after execution
     - Temporary files are not created
+    - Using -p option may expose password in command history and process list
 
 EOF
 
@@ -422,7 +431,7 @@ main() {
     [[ $# -eq 0 ]] && show_usage
 
     local output_file=""
-    local password
+    local password=""
     local -a input_words=()
 
     # Check system compatibility
@@ -439,6 +448,12 @@ main() {
                 output_file="$2"
                 shift 2
                 ;;
+            -p)
+                [[ -z "$2" ]] && show_usage
+                password="$2"
+                validate_password "$password"
+                shift 2
+                ;;
             *)
                 break
                 ;;
@@ -451,8 +466,10 @@ main() {
         validate_output_file "$output_file"
     fi
 
-    # Read password securely
-    password=$(read_secure_password)
+    # If password wasn't provided with -p, read it securely
+    if [[ -z "$password" ]]; then
+        password=$(read_secure_password)
+    fi
 
     # Read input words
     while [[ "$#" -gt 0 ]]; do
