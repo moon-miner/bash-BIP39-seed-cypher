@@ -63,16 +63,16 @@ Word frequency: Max 1.5% occurrence
 
 ```bash
 # Basic usage
-./bip39cipher.sh word1 word2 word3
+./scypher.sh word1 word2 word3
 
 # Save output to file
-./bip39cipher.sh -f output.txt word1 word2 word3
+./scypher.sh -f output.txt word1 word2 word3
 
 # Specify password in command line (not recommended)
-./bip39cipher.sh -p mypassword word1 word2 word3
+./scypher.sh -p mypassword word1 word2 word3
 
 # Process words from file
-./bip39cipher.sh -f output.txt input_seed.txt
+./scypher.sh -f output.txt input_seed.txt
 ```
 
 ## 📋 Requirements
@@ -86,11 +86,11 @@ Word frequency: Max 1.5% occurrence
 1. Clone the repository
 2. Make the script executable:
    ```bash
-   chmod +x bip39cipher.sh
+   chmod +x scypher.sh
    ```
 3. Verify the script works:
    ```bash
-   ./bip39cipher.sh --help
+   ./scypher.sh --help
    ```
 
 ## 📜 License and Disclaimer
