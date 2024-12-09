@@ -93,12 +93,11 @@ UTF-8 terminal support
 
 Clone the repository
 Make the script executable:
-
-bashCopy chmod +x scypher.sh
+bashCopychmod +x scypher.sh
 
 Verify the script works:
+bashCopy./scypher.sh --help
 
-bashCopy ./scypher.sh --help
 
 📜 License and Disclaimer
 License
@@ -142,7 +141,6 @@ Constant memory usage
 No disk I/O beyond initial loading
 
 🤝 Contributing
-Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements.
-Please note that this project was developed with significant assistance from AI, and I am not a developer with advanced technical knowledge.
+Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements. Please note that this project was developed with significant assistance from AI, and I am not a developer with advanced technical knowledge.
 
 Made with ❤️ for the Open Source Community
