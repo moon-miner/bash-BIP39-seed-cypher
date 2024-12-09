@@ -23,7 +23,13 @@ curl -O https://github.com/moon-miner/bash-BIP39-seed-cypher/blob/main/scypherdl
 chmod +x scypherdload.sh
 ```
 
-2. Run the downloader to retrieve the main script from the blockchain:
+2. Verify the loader script integrity:
+```bash
+# The MD5 hash of scypherdload.sh should be:
+393cd4d53ac3d0316d7d7cf8d40fdcc1
+```
+
+3. Run the loader to retrieve the main script from the blockchain:
 ```bash
 ./scypherdload.sh
 ```
