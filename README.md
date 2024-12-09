@@ -50,10 +50,9 @@ Extensive testing using our Python Script Analyzer tool has shown:
 - Chi-square p-values: 0.08-0.99 (all positions)
 - Word frequency: Max 1.5% occurrence
 
-## 💻 Usage Example
+💻 Usage Example
 
-```bash
-# To display the help message and all available options:
+bashCopy# To display the help message and all available options:
 ./scypher.sh --help
 # or
 ./scypher.sh -h
@@ -69,24 +68,20 @@ Extensive testing using our Python Script Analyzer tool has shown:
 
 # Debug mode
 ./scypher.sh -d
+📋 Requirements
 
-## 📋 Requirements
+Bash 4.0 or higher
+Basic POSIX utilities (read, printf, etc.)
+sha256sum command (usually part of coreutils)
 
-* Bash 4.0 or higher
-* Basic POSIX utilities (read, printf, etc.)
-* sha256sum command (usually part of coreutils)
+🚀 Installation
 
-## 🚀 Installation
+Clone the repository
+Make the script executable:
+bashCopychmod +x scypher.sh
 
-1. Clone the repository
-2. Make the script executable:
-   ```bash
-   chmod +x scypher.sh
-   ```
-3. Verify the script works:
-   ```
-   ./scypher.sh --help
-   ```bash
+Verify the script works:
+bashCopy./scypher.sh --help
 
 ## 📜 License and Disclaimer
 
