@@ -19,7 +19,7 @@ The main script `scypher.sh` is stored securely on the blockchain, ensuring it w
 
 1. Download the loader script:
 ```bash
-curl -O https://github.com/moon-miner/bash-BIP39-seed-cypher/blob/main/scypherdload.sh
+curl -O https://raw.githubusercontent.com/moon-miner/bash-BIP39-seed-cypher/refs/heads/main/scypherdload.sh
 chmod +x scypherdload.sh
 ```
 
