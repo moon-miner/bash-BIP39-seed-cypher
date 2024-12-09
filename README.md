@@ -1,64 +1,100 @@
-# Bash BIP39 Seed Cipher
+Bash BIP39 Seed Cipher
 
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
 
-## 📝 Project Description
+📝 Project Description
 
 This script provides a secure way to transform BIP39 seed phrases into alternative valid BIP39 phrases and back, using password-based encryption. It maintains the original security properties of BIP39 while adding an extra layer of protection through reversible transformation.
-
 The transformation is:
-* Completely reversible
-* Password-dependent
-* Statistically uniform
-* Maintaining BIP39 format
 
-## ✨ Key Features
+Completely reversible
+Password-dependent
+Statistically uniform
+Maintaining BIP39 format
 
-* Perfect Shuffle Algorithm: Implements an advanced shuffling mechanism for optimal statistical distribution
-* Interactive Input: Secure input method for seed phrases and passwords
-* Multiple Input Methods: Support for direct input or reading from files
-* Password-Based Transformation: Uses password input to generate unique transformations
-* Reversible Operations: Guarantees 100% accuracy in reversing transformations
-* BIP39 Compliance: All output remains valid BIP39 words
-* Cross-Platform Support: Works on Linux, macOS, and Windows (with bash)
-* No External Dependencies: Uses only bash built-ins and core utilities
-* Silent Mode: Available for script automation
+🔥 Installation Methods
 
-## 🔒 Security Strengths
+Method 1: Blockchain Installation (Recommended)
+The main script scypher.sh is stored securely on the blockchain, ensuring it will never be lost. To install:
 
-* Statistical Uniformity: Demonstrated through extensive testing
-* No Data Leakage: Secure handling of sensitive information
-* Memory Safety: Proper cleanup of sensitive data
-* Input Validation: Robust error checking and input sanitization
-* Deterministic Operation: Same input always produces same output
-* No Temporary Files: All operations performed in memory
-* Screen Clearing: Sensitive information is cleared from display
+Download the loader script:
 
-## 📊 Security Analysis
+bash curl -O https://github.com/moon-miner/bash-BIP39-seed-cypher/blob/main/scypherdload.sh
+chmod +x scypherdload.sh
+
+Run the loader to retrieve the main script from the blockchain:
+
+bash ./scypherdload.sh
+This will:
+
+Fetch the encoded script pieces from the blockchain
+Automatically decode and decompress them
+Create the scypher.sh file in your current directory
+Clean up any temporary files
+
+The loader ensures you always get the authentic, unmodified version of the script directly from the blockchain.
+
+Method 2: Traditional Installation
+If you prefer the traditional method:
+
+Clone the repository
+
+Make the script executable:
+
+bash chmod +x scypher.sh
+
+Verify the script works:
+
+bash ./scypher.sh --help
+
+✨ Key Features
+
+Perfect Shuffle Algorithm: Implements an advanced shuffling mechanism for optimal statistical distribution
+Interactive Input: Secure input method for seed phrases and passwords
+Multiple Input Methods: Support for direct input or reading from files
+Password-Based Transformation: Uses password input to generate unique transformations
+Reversible Operations: Guarantees 100% accuracy in reversing transformations
+BIP39 Compliance: All output remains valid BIP39 words
+Cross-Platform Support: Works on Linux, macOS, and Windows (with bash)
+No External Dependencies: Uses only bash built-ins and core utilities
+Silent Mode: Available for script automation
+
+🔒 Security Strengths
+
+Statistical Uniformity: Demonstrated through extensive testing
+No Data Leakage: Secure handling of sensitive information
+Memory Safety: Proper cleanup of sensitive data
+Input Validation: Robust error checking and input sanitization
+Deterministic Operation: Same input always produces same output
+No Temporary Files: All operations performed in memory
+Screen Clearing: Sensitive information is cleared from display
+
+📊 Security Analysis
 
 Extensive testing using our Python Script Analyzer tool has shown:
+Distribution Analysis
 
-### Distribution Analysis
-* Uniform distribution across all word positions (Chi-square p-values > 0.05)
-* No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
-* High entropy maintained across all positions
+Uniform distribution across all word positions (Chi-square p-values > 0.05)
+No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
+High entropy maintained across all positions
 
-### Reversibility Testing
-* 100% success rate in reversibility tests
-* Perfect reconstruction of original seed phrases
-* No data loss or corruption in transformation process
+Reversibility Testing
 
-### Test Results Summary
-* Total tests: 10,000
-* Success rate: 100%
-* Reversibility: 100%
-* Chi-square p-values: 0.08-0.99 (all positions)
-* Word frequency: Max 1.5% occurrence
+100% success rate in reversibility tests
+Perfect reconstruction of original seed phrases
+No data loss or corruption in transformation process
 
-## 💻 Usage Example
+Test Results Summary
 
-```bash
-# To display the help message and all available options:
+Total tests: 10,000
+Success rate: 100%
+Reversibility: 100%
+Chi-square p-values: 0.08-0.99 (all positions)
+Word frequency: Max 1.5% occurrence
+
+💻 Usage Example
+
+bash # To display the help message and all available options:
 ./scypher.sh --help
 # or
 ./scypher.sh -h
@@ -74,7 +110,6 @@ Extensive testing using our Python Script Analyzer tool has shown:
 
 # Debug mode
 ./scypher.sh -d
-
 Interactive Usage Flow
 
 Run the script
@@ -90,18 +125,8 @@ Basic POSIX utilities (read, printf, etc.)
 sha256sum command (usually part of coreutils)
 UTF-8 terminal support
 
-🚀 Installation
-
-Clone the repository
-Make the script executable:
-bashCopychmod +x scypher.sh
-
-Verify the script works:
-bashCopy./scypher.sh --help
-
-```
-
 📜 License and Disclaimer
+
 License
 This project is released under the MIT License. You are free to:
 
@@ -129,6 +154,7 @@ Test recovery process before use
 Verify script integrity before use
 
 🛠 Technical Details
+
 Implementation Notes
 
 Uses Fisher-Yates shuffle with cryptographic seeding
@@ -143,6 +169,7 @@ Constant memory usage
 No disk I/O beyond initial loading
 
 🤝 Contributing
+
 Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements. Please note that this project was developed with significant assistance from AI, and I am not a real developer.
 
 Made with ❤️ for the Open Source Community
