@@ -33,17 +33,25 @@ class EnhancedAnalyzer:
     def run_cipher(self, password: str, words: Optional[List[str]] = None) -> Optional[List[str]]:
         try:
             input_words = words if words is not None else self.test_seed
+            # Convertir la lista de palabras a una sola cadena
+            seed_phrase = ' '.join(input_words)
+
+            # Preparar el proceso con el modo silencioso
             process = subprocess.Popen(
-                [self.bash_script_path] + input_words,
+                [self.bash_script_path, '-s'],  # Agregamos el flag -s para modo silencioso
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 env={"TERM": "xterm"}
             )
-            stdout, stderr = process.communicate(input=f"{password}\n", timeout=5)
-            if process.returncode == 0:
+
+            # Enviar la frase semilla y la contraseña
+            stdout, stderr = process.communicate(input=f"{seed_phrase}\n{password}\n", timeout=5)
+
+            if process.returncode == 0 and stdout.strip():
                 return stdout.strip().split()
+
             if self.debug and stderr:
                 print(f"Error en el proceso: {stderr}")
             return None
