@@ -1,85 +1,74 @@
 # Bash BIP39 Seed Cipher
-
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
 
 ## 📝 Project Description
-
 This script provides a secure way to transform BIP39 seed phrases into alternative valid BIP39 phrases and back, using password-based encryption. It maintains the original security properties of BIP39 while adding an extra layer of protection through reversible transformation.
 
 The transformation is:
-* Completely reversible
-* Password-dependent
-* Statistically uniform
-* Maintaining BIP39 format
+- Completely reversible
+- Password-dependent
+- Statistically uniform
+- Maintaining BIP39 format
 
 ## ✨ Key Features
-
-* **Perfect Shuffle Algorithm**: Implements an advanced shuffling mechanism for optimal statistical distribution
-* **Password-Based Transformation**: Uses password input to generate unique transformations
-* **Reversible Operations**: Guarantees 100% accuracy in reversing transformations
-* **BIP39 Compliance**: All output remains valid BIP39 words
-* **Command-Line Interface**: Simple and efficient CLI with various options
-* **Cross-Platform Support**: Works on Linux, macOS, and Windows (with bash)
-* **No External Dependencies**: Uses only bash built-ins and core utilities
+- Perfect Shuffle Algorithm: Implements an advanced shuffling mechanism for optimal statistical distribution
+- Interactive Input: Secure input method for seed phrases and passwords
+- Multiple Input Methods: Support for direct input or reading from files
+- Password-Based Transformation: Uses password input to generate unique transformations
+- Reversible Operations: Guarantees 100% accuracy in reversing transformations
+- BIP39 Compliance: All output remains valid BIP39 words
+- Cross-Platform Support: Works on Linux, macOS, and Windows (with bash)
+- No External Dependencies: Uses only bash built-ins and core utilities
+- Silent Mode: Available for script automation
 
 ## 🔒 Security Strengths
-
-* **Statistical Uniformity**: Demonstrated through extensive testing
-* **No Data Leakage**: Secure handling of sensitive information
-* **Memory Safety**: Proper cleanup of sensitive data
-* **Input Validation**: Robust error checking and input sanitization
-* **Deterministic Operation**: Same input always produces same output
-* **No Temporary Files**: All operations performed in memory
+- Statistical Uniformity: Demonstrated through extensive testing
+- No Data Leakage: Secure handling of sensitive information
+- Memory Safety: Proper cleanup of sensitive data
+- Input Validation: Robust error checking and input sanitization
+- Deterministic Operation: Same input always produces same output
+- No Temporary Files: All operations performed in memory
+- Screen Clearing: Sensitive information is cleared from display
 
 ## 📊 Security Analysis
-
 Extensive testing using our Python Script Analyzer tool has shown:
 
 ### Distribution Analysis
-* Uniform distribution across all word positions (Chi-square p-values > 0.05)
-* No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
-* High entropy maintained across all positions
+- Uniform distribution across all word positions (Chi-square p-values > 0.05)
+- No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
+- High entropy maintained across all positions
 
 ### Reversibility Testing
-* 100% success rate in reversibility tests
-* Perfect reconstruction of original seed phrases
-* No data loss or corruption in transformation process
-
-### Statistical Properties
-* Uniform word distribution
-* No detectable patterns or biases
-* Strong resistance to statistical analysis
+- 100% success rate in reversibility tests
+- Perfect reconstruction of original seed phrases
+- No data loss or corruption in transformation process
 
 ### Test Results Summary
-```
-Total tests: 10,000
-Success rate: 100%
-Reversibility: 100%
-Chi-square p-values: 0.08-0.99 (all positions) - All values well above critical threshold of 0.05, indicating excellent uniformity
-Word frequency: Max 1.5% occurrence
-```
+- Total tests: 10,000
+- Success rate: 100%
+- Reversibility: 100%
+- Chi-square p-values: 0.08-0.99 (all positions)
+- Word frequency: Max 1.5% occurrence
 
 ## 💻 Usage Example
 
 ```bash
 # To display the help message and all available options:
-
 ./scypher.sh --help
 # or
 ./scypher.sh -h
 
-# Basic usage
-./scypher.sh word1 word2 word3
+# Basic interactive usage
+./scypher.sh
 
-# Save output to file
-./scypher.sh -f output_file word1 word2 word3
+# Save output to file (interactive mode)
+./scypher.sh -f output_file
 
-# Specify password in command line (not recommended)
-./scypher.sh -p mypassword word1 word2 word3
+# Silent mode for script automation
+./scypher.sh -s
 
-# Process words from file and save to a file
-./scypher.sh -f output_file input_seed.txt
-```
+# Debug mode
+./scypher.sh -d
 
 ## 📋 Requirements
 
