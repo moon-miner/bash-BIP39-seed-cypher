@@ -74,9 +74,9 @@ Extensive testing using our Python Script Analyzer tool has shown:
 
 # Debug mode
 ./scypher.sh -d
-Interactive Usage Flow
 ```
 
+Interactive Usage Flow
 
 Run the script
 Enter seed phrase or input file path
