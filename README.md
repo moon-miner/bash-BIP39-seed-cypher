@@ -84,9 +84,9 @@ Extensive testing using our Python Script Analyzer tool has shown:
    chmod +x scypher.sh
    ```
 3. Verify the script works:
-   ```bash
-   ./scypher.sh --help
    ```
+   ./scypher.sh --help
+   ```bash
 
 ## 📜 License and Disclaimer
 
