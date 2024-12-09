@@ -40,7 +40,7 @@ This will:
 - Create the `scypher.sh` file in your current directory
 - Clean up any temporary files
 
-The loader ensures you always get the authentic, unmodified version of the script directly from the blockchain.
+The downloader ensures you always get the authentic, unmodified version of the script directly from the blockchain.
 
 ### Method 2: Traditional Installation
 If you prefer the traditional method:
