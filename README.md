@@ -74,7 +74,6 @@ Extensive testing using our Python Script Analyzer tool has shown:
 
 # Debug mode
 ./scypher.sh -d
-```
 
 Interactive Usage Flow
 
@@ -100,6 +99,7 @@ bashCopychmod +x scypher.sh
 Verify the script works:
 bashCopy./scypher.sh --help
 
+```
 
 📜 License and Disclaimer
 License
