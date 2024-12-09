@@ -1,5 +1,4 @@
 Bash BIP39 Seed Cipher
-
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
 📝 Project Description
 This script provides a secure way to transform BIP39 seed phrases into alternative valid BIP39 phrases and back, using password-based encryption. It maintains the original security properties of BIP39 while adding an extra layer of protection through reversible transformation.
@@ -139,4 +138,5 @@ No disk I/O beyond initial loading
 
 🤝 Contributing
 Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements. Please note that this project was developed with significant assistance from AI, and I am not a developer with advanced technical knowledge.
+
 Made with ❤️ for the Open Source Community
