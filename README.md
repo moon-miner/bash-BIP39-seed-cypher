@@ -1,9 +1,6 @@
 Bash BIP39 Seed Cipher
-
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
-
 📝 Project Description
-
 This script provides a secure way to transform BIP39 seed phrases into alternative valid BIP39 phrases and back, using password-based encryption. It maintains the original security properties of BIP39 while adding an extra layer of protection through reversible transformation.
 The transformation is:
 
@@ -13,18 +10,17 @@ Statistically uniform
 Maintaining BIP39 format
 
 🔥 Installation Methods
-
 Method 1: Blockchain Installation (Recommended)
 The main script scypher.sh is stored securely on the blockchain, ensuring it will never be lost. To install:
 
 Download the loader script:
 
-bash curl -O https://github.com/moon-miner/bash-BIP39-seed-cypher/blob/main/scypherdload.sh
+bashCopycurl -O https://github.com/moon-miner/bash-BIP39-seed-cypher/blob/main/scypherdload.sh
 chmod +x scypherdload.sh
 
 Run the loader to retrieve the main script from the blockchain:
 
-bash ./scypherdload.sh
+bashCopy./scypherdload.sh
 This will:
 
 Fetch the encoded script pieces from the blockchain
@@ -33,20 +29,17 @@ Create the scypher.sh file in your current directory
 Clean up any temporary files
 
 The loader ensures you always get the authentic, unmodified version of the script directly from the blockchain.
-
 Method 2: Traditional Installation
 If you prefer the traditional method:
 
 Clone the repository
-
 Make the script executable:
 
-bash chmod +x scypher.sh
+bashCopychmod +x scypher.sh
 
 Verify the script works:
 
-bash ./scypher.sh --help
-
+bashCopy./scypher.sh --help
 ✨ Key Features
 
 Perfect Shuffle Algorithm: Implements an advanced shuffling mechanism for optimal statistical distribution
@@ -70,7 +63,6 @@ No Temporary Files: All operations performed in memory
 Screen Clearing: Sensitive information is cleared from display
 
 📊 Security Analysis
-
 Extensive testing using our Python Script Analyzer tool has shown:
 Distribution Analysis
 
@@ -93,8 +85,7 @@ Chi-square p-values: 0.08-0.99 (all positions)
 Word frequency: Max 1.5% occurrence
 
 💻 Usage Example
-
-bash # To display the help message and all available options:
+bashCopy# To display the help message and all available options:
 ./scypher.sh --help
 # or
 ./scypher.sh -h
@@ -126,7 +117,6 @@ sha256sum command (usually part of coreutils)
 UTF-8 terminal support
 
 📜 License and Disclaimer
-
 License
 This project is released under the MIT License. You are free to:
 
@@ -154,7 +144,6 @@ Test recovery process before use
 Verify script integrity before use
 
 🛠 Technical Details
-
 Implementation Notes
 
 Uses Fisher-Yates shuffle with cryptographic seeding
@@ -169,7 +158,5 @@ Constant memory usage
 No disk I/O beyond initial loading
 
 🤝 Contributing
-
 Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements. Please note that this project was developed with significant assistance from AI, and I am not a real developer.
-
 Made with ❤️ for the Open Source Community
