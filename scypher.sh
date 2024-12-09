@@ -8,19 +8,20 @@
 # - Write permissions in the output directory
 # - Terminal with UTF-8 support for ASCII art
 
-# Verificar que la versión de bash soporte arrays asociativos (4.0 o superior)
+# Check for Bash version support (4.0 or higher required for associative arrays)
 if ((BASH_VERSINFO[0] < 4)); then
-    echo "Error: Este script requiere Bash 4.0 o superior" >&2
+    echo "Error: This script requires Bash 4.0 or higher" >&2
     exit 1
 fi
 
-# Constantes
+# Constants
 readonly EXIT_SUCCESS=0
 readonly EXIT_ERROR=1
 readonly PERMISSIONS=600
 readonly EXTENSION=".txt"
 readonly MIN_BASH_VERSION=4
 readonly MIN_PASSWORD_LENGTH=1
+readonly VALID_WORD_COUNTS=(12 15 18 21 24)
 
 # BIP39 wordlist - Add your words here
 declare -ra WORDS=(
@@ -190,84 +191,108 @@ declare -ra WORDS=(
     yellow you young youth zebra zero zone zoo
 )
 
-# OS Compatibility Check
-check_system_compatibility() {
-    local os_name
-    os_name=$(uname -s)
+# Clear screen using ANSI sequences
+clear_screen() {
+    echo -e "\033[2J\033[H"
+}
 
-    case "$os_name" in
-        Linux)
-            # Check for GNU coreutils
-            if ! command -v sha256sum >/dev/null 2>&1; then
-                echo "Error: sha256sum not found. Please install GNU coreutils." >&2
-                exit "${EXIT_ERROR}"
-            fi
-            ;;
-        Darwin)
-            # macOS specific checks
-            if ! command -v sha256sum >/dev/null 2>&1; then
-                if command -v gsha256sum >/dev/null 2>&1; then
-                    # Create alias for GNU version if available
-                    sha256sum() { gsha256sum "$@"; }
-                else
-                    echo "Error: sha256sum not found. Please install coreutils via Homebrew:" >&2
-                    echo "brew install coreutils" >&2
-                    exit "${EXIT_ERROR}"
-                fi
-            fi
-            ;;
-        MINGW*|CYGWIN*|MSYS*)
-            # Windows specific checks
-            if ! command -v sha256sum >/dev/null 2>&1; then
-                echo "Error: sha256sum not found. Please install GNU coreutils for Windows." >&2
-                exit "${EXIT_ERROR}"
-            fi
-            # Check for Windows-specific line endings
-            if [[ "$(printf '\r')" == $'\r' ]]; then
-                echo "Warning: Windows line endings detected. This may cause issues." >&2
-            fi
-            ;;
-        *)
-            echo "Warning: Untested operating system ($os_name). Proceed with caution." >&2
-            ;;
-    esac
+# Clear command history
+clear_history() {
+    history -c
+    history -w
+}
 
-    # Check terminal capabilities
-    if [[ -z "${TERM}" || "${TERM}" == "dumb" ]]; then
-        echo "Warning: Limited terminal capabilities detected. ASCII art may not display correctly." >&2
+# Function to check if input is a file
+is_file() {
+    [[ -f "$1" ]]
+}
+
+# Function to read words from file
+read_words_from_file() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        exit "${EXIT_ERROR}"
     fi
+    tr '\n' ' ' < "$file"
+}
+
+# Function to validate word count
+validate_word_count() {
+    local -a words=("$@")
+    local count=${#words[@]}
+
+    for valid_count in "${VALID_WORD_COUNTS[@]}"; do
+        if [[ $count -eq $valid_count ]]; then
+            return 0
+        fi
+    done
+
+    echo "Invalid number of words: $count. Valid values are: ${VALID_WORD_COUNTS[*]}" >&2
+    return 1
+}
+
+# Function to validate BIP39 words
+validate_bip39_words() {
+    local -a words=("$@")
+    local -a invalid_words=()
+    local word
+
+    for word in "${words[@]}"; do
+        if [[ ! " ${WORDS[*]} " =~ " ${word} " ]]; then
+            invalid_words+=("$word")
+        fi
+    done
+
+    if [[ ${#invalid_words[@]} -gt 0 ]]; then
+        echo "Invalid BIP39 words found: ${invalid_words[*]}" >&2
+        return 1
+    fi
+
+    return 0
 }
 
 # Function to read password securely
 read_secure_password() {
-    local password
-    # Disable command history temporarily
-    set +o history
-    # Read password without echo
-    read -s -p "Enter password (minimum ${MIN_PASSWORD_LENGTH} characters): " password
-    echo >&2
-    # Re-enable command history
-    set -o history
+    local password password_confirm
 
-    # Validate password length
-    if [[ ${#password} -lt ${MIN_PASSWORD_LENGTH} ]]; then
-        echo "Error: Password must be at least ${MIN_PASSWORD_LENGTH} characters long" >&2
-        exit "${EXIT_ERROR}"
-    fi
+    # Print recommendations to stderr to ensure they appear
+    cat >&2 << EOF
+
+Password recommendations:
+- Minimum length: 8 characters
+- Include uppercase and lowercase letters
+- Include numbers and special characters
+
+EOF
+
+    while true; do
+        # Print prompts to stderr and ensure newlines
+        printf "Enter password: " >&2
+        read -s password
+        printf "\n" >&2  # Explicit newline after password input
+
+        printf "Confirm password: " >&2
+        read -s password_confirm
+        printf "\n\n" >&2  # Two explicit newlines after confirmation
+
+        if [[ "$password" != "$password_confirm" ]]; then
+            printf "Passwords do not match. Please try again.\n\n" >&2
+            continue
+        fi
+
+        if [[ ${#password} -lt ${MIN_PASSWORD_LENGTH} ]]; then
+            printf "Error: Password must be at least ${MIN_PASSWORD_LENGTH} characters long\n\n" >&2
+            continue
+        fi
+
+        break
+    done
 
     printf "%s" "$password"
 }
 
-# Function to validate password
-validate_password() {
-    local password="$1"
-    if [[ ${#password} -lt ${MIN_PASSWORD_LENGTH} ]]; then
-        echo "Error: Password must be at least ${MIN_PASSWORD_LENGTH} characters long" >&2
-        exit "${EXIT_ERROR}"
-    fi
-}
-
-# Función para generar semilla desde contraseña
+# Function to generate seed from password
 generate_seed_from_password() {
     local password="$1"
     local hash
@@ -275,7 +300,7 @@ generate_seed_from_password() {
     printf "%d" "0x${hash:0:8}"
 }
 
-# Función para el Fisher-Yates shuffle mejorado
+# Enhanced Fisher-Yates shuffle
 fisher_yates_shuffle() {
     local -i seed="$1"
     local -a arr=("${@:2}")
@@ -287,7 +312,6 @@ fisher_yates_shuffle() {
         j=$(( (seed + i) % (i + 1) ))
         seed=$(( (seed * 1103515245 + 12345) % 2147483648 ))
 
-        # Intercambio seguro con validación
         if [[ $i -lt $size && $j -lt $size && -n "${arr[i]}" && -n "${arr[j]}" ]]; then
             temp="${arr[i]}"
             arr[i]="${arr[j]}"
@@ -298,7 +322,7 @@ fisher_yates_shuffle() {
     printf "%s\n" "${arr[@]}"
 }
 
-# Función para transformación por segmentos mejorada
+# Transform segments function
 transform_segments() {
     local -i seed="$1"
     local -a arr=("${@:2}")
@@ -307,7 +331,6 @@ transform_segments() {
     local -i offset
     local temp
 
-    # Transformar cada segmento
     for ((segment = 0; segment < 4; segment++)); do
         offset=$((segment * segment_size))
 
@@ -329,33 +352,26 @@ transform_segments() {
     printf "%s\n" "${arr[@]}"
 }
 
-# Función Perfect Shuffle modificada y mejorada
+# Perfect Shuffle function
 perfect_shuffle() {
     local password="$1"
     local -a mixed_words=("${WORDS[@]}")
     local -i seed1 seed2
 
-    # Primera semilla desde la contraseña
     seed1=$(generate_seed_from_password "$password")
-
-    # Primer Fisher-Yates shuffle
     mapfile -t mixed_words < <(fisher_yates_shuffle "$seed1" "${mixed_words[@]}")
 
-    # Validar que no se perdieron palabras
     if [[ ${#mixed_words[@]} -ne ${#WORDS[@]} ]]; then
         echo "Error: Word count mismatch after shuffle" >&2
         exit "${EXIT_ERROR}"
     fi
 
-    # Transformación por segmentos
     seed2=$(( (seed1 * 1103515245 + 12345) % 2147483648 ))
     mapfile -t mixed_words < <(transform_segments "$seed2" "${mixed_words[@]}")
 
-    # Segundo Fisher-Yates shuffle con nueva semilla
     seed2=$(( (seed2 * 1103515245 + 12345) % 2147483648 ))
     mapfile -t mixed_words < <(fisher_yates_shuffle "$seed2" "${mixed_words[@]}")
 
-    # Validación final del conteo de palabras
     if [[ ${#mixed_words[@]} -ne ${#WORDS[@]} ]]; then
         echo "Error: Final word count mismatch" >&2
         exit "${EXIT_ERROR}"
@@ -364,44 +380,38 @@ perfect_shuffle() {
     printf "%s\n" "${mixed_words[@]}"
 }
 
-# Función principal de mezcla
+# Mix words function
 mix_words() {
     local password="$1"
     perfect_shuffle "$password"
 }
 
-# Function to create and apply word mapping with strict validation
+# Process words function
 process_words() {
     local password="$1"
     shift
     local -a input_words=("$@")
 
-    # Debug para verificar palabras de entrada
     if [[ "${DEBUG:-}" == "1" ]]; then
-        echo "Procesando palabras: ${input_words[*]}" >&2
-        echo "Número de palabras a procesar: ${#input_words[@]}" >&2
+        echo "Processing words: ${input_words[*]}" >&2
+        echo "Number of words to process: ${#input_words[@]}" >&2
     fi
 
-    # Get mixed words and create mapping
     local -a mixed_words
     mapfile -t mixed_words < <(mix_words "$password")
     local -i half_size=$(( ${#mixed_words[@]} / 2 ))
 
-    # Verificar que el tamaño sea par
     if (( ${#mixed_words[@]} % 2 != 0 )); then
         echo "Error: Internal error - invalid word list size" >&2
         exit "${EXIT_ERROR}"
     fi
 
-    # Declarar el array asociativo para el mapeo
     declare -A mapping
 
-    # Crear mapeo estricto uno a uno
     for ((i = 0; i < half_size; i++)); do
         local word1="${mixed_words[i]}"
         local word2="${mixed_words[i + half_size]}"
 
-        # Validaciones
         if [[ -z "$word1" || -z "$word2" ]]; then
             echo "Error: Empty word detected in mapping" >&2
             exit "${EXIT_ERROR}"
@@ -412,42 +422,34 @@ process_words() {
             exit "${EXIT_ERROR}"
         fi
 
-        # Mapeo bidireccional uno a uno
         mapping["$word1"]="$word2"
         mapping["$word2"]="$word1"
 
-        # Debug
         if [[ "${DEBUG:-}" == "1" ]]; then
             echo "Mapping: $word1 <-> $word2" >&2
         fi
     done
 
-    # Procesar palabras de entrada y generar salida
     local output=""
     for word in "${input_words[@]}"; do
-        # Limpiar la palabra de entrada
         word=$(echo "$word" | tr -d '[:space:]')
 
         if [[ "${DEBUG:-}" == "1" ]]; then
-            echo "Procesando palabra: '$word'" >&2
+            echo "Processing word: '$word'" >&2
         fi
 
-        # Verificar mapeo
         if [[ -n "${mapping[$word]+x}" ]]; then
             local mapped_word="${mapping[$word]}"
 
-            # Debug
             if [[ "${DEBUG:-}" == "1" ]]; then
                 echo "Input: $word -> Output: $mapped_word" >&2
             fi
 
-            # Verificar que es una única palabra
             if [[ -z "$mapped_word" || "$mapped_word" =~ [[:space:]] ]]; then
                 echo "Error: Invalid mapping result for '$word'" >&2
                 exit "${EXIT_ERROR}"
             fi
 
-            # Construir salida
             [[ -n "$output" ]] && output+=" "
             output+="$mapped_word"
         else
@@ -457,65 +459,32 @@ process_words() {
     done
 
     if [[ "${DEBUG:-}" == "1" ]]; then
-        echo "Salida final: '$output'" >&2
+        echo "Final output: '$output'" >&2
     fi
 
     echo "$output"
 }
 
-# Function to display usage information and ASCII art
+# Show usage information and ASCII art
 show_usage() {
     local script_name
     script_name=$(basename "$0")
 
     cat << EOF
-Enhanced BIP39 seed cypher - A tool to encode/decode BIP39 seed phrases
+Enhanced BIP39 seed cipher - A tool to encode/decode BIP39 seed phrases
 Using Perfect Shuffle algorithm for optimal distribution
 
 Usage:
-    ${script_name} [-f OUTPUT_FILE] [-p PASSWORD] [-d] [WORD1 WORD2 ... | SEEDFILE]
-    ${script_name} -h | --help
+    ${script_name} [-f OUTPUT_FILE] [-s] [-d] [-h]
 
-Description:
-    This script takes BIP39 seed words and creates a password-protected encoding/decoding
-    of those words using a Perfect Shuffle algorithm for optimal statistical distribution.
-    The same password will decode the encoded words back to the original.
-
-Parameters:
-    -f OUTPUT_FILE    Optional. Save output to specified file (will append .txt if needed)
-    -p PASSWORD       Optional. Specify password directly (if not used, will prompt securely)
-    -d               Optional. Enable debug mode
+Options:
+    -f OUTPUT_FILE    Save output to specified file (will append .txt if needed)
+    -s, --silent     Silent mode (no prompts, for scripting)
+    -d               Enable debug mode
     -h, --help       Show this help message and exit
-    WORDS            Space-separated BIP39 words
-    SEEDFILE         Text file containing BIP39 words (one per line)
-
-Examples:
-    # Encode/Decode three words and display result (will prompt for password)
-    ${script_name} abandon ability able
-
-    # Encode/Decode words with password specified
-    ${script_name} -p mypassword abandon ability able
-
-    # Encode/Decode words and save to file
-    ${script_name} -f my_encoded_seed abandon ability able
-
-    # Encode/Decode words from file with password
-    ${script_name} -p mypassword my_seed_phrase.txt
-
-    # Enable debug mode
-    ${script_name} -d abandon ability able
-
-Security Notes:
-    - Uses Perfect Shuffle algorithm for optimal distribution
-    - The output file permissions are set to ${PERMISSIONS} (user read/write only)
-    - When -p is not used, password is read securely without echo
-    - Memory is cleared after execution
-    - Temporary files are not created
-    - Using -p option may expose password in command history and process list
 
 EOF
 
-    # ASCII art
     cat << 'EOF'
                                   000000000
                               000000000000000000
@@ -533,11 +502,12 @@ EOF
                             000000          000000
                               000000000000000000
                                    000000000
+
 EOF
     exit "${EXIT_ERROR}"
 }
 
-# Function to validate output file
+# Validate output file
 validate_output_file() {
     local file="$1"
     local dir
@@ -549,27 +519,25 @@ validate_output_file() {
     fi
 }
 
+# Cleanup function
 cleanup() {
-    # Limpiar variables sensibles
     if [[ -n "${PASSWORD:-}" ]]; then
         PASSWORD=""
     fi
     if [[ -n "${DEBUG:-}" ]]; then
         unset DEBUG
     fi
+    clear_history
 }
 
 # Main function
 main() {
-    [[ $# -eq 0 ]] && show_usage
-
     local output_file=""
+    local silent_mode=0
     local password=""
-    local -a input_words=()
+    local input_words=()
 
-    check_system_compatibility
-
-    # Process arguments
+    # Process only flags
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
             -h|--help)
@@ -580,20 +548,16 @@ main() {
                 output_file="$2"
                 shift 2
                 ;;
-            -p)
-                [[ -z "$2" ]] && show_usage
-                password="$2"
-                validate_password "$password"
-                shift 2
+            -s|--silent)
+                silent_mode=1
+                shift
                 ;;
             -d)
                 DEBUG=1
                 shift
                 ;;
             *)
-                # Modificación aquí: solo agregar la palabra actual
-                input_words+=("$1")
-                shift
+                shift  # Ignore other arguments
                 ;;
         esac
     done
@@ -604,41 +568,74 @@ main() {
         validate_output_file "$output_file"
     fi
 
-    # Get password if not provided
-    if [[ -z "$password" ]]; then
+    # Interactive input phase
+    local input
+    if [[ $silent_mode -eq 0 ]]; then
+        echo ""
+        echo -n "Enter seed phrase or input file: "
+        read -r input
+        echo  # Add newline after input
+
+        if is_file "$input"; then
+            input=$(read_words_from_file "$input")
+        fi
+    else
+        read -r input
+    fi
+
+    # Convert input to array
+    read -ra input_words <<< "$input"
+
+    # Validate input
+    if ! validate_word_count "${input_words[@]}"; then
+        exit "${EXIT_ERROR}"
+    fi
+
+    if ! validate_bip39_words "${input_words[@]}"; then
+        exit "${EXIT_ERROR}"
+    fi
+
+    # Get password after successful validation
+    if [[ $silent_mode -eq 0 ]]; then
         password=$(read_secure_password)
+    else
+        read -rs password
     fi
-
-    # Debug para ver las palabras de entrada
-    if [[ "${DEBUG:-}" == "1" ]]; then
-        echo "Palabras de entrada: ${input_words[*]}" >&2
-        echo "Número de palabras de entrada: ${#input_words[@]}" >&2
-    fi
-
-    [[ ${#input_words[@]} -eq 0 ]] && show_usage
 
     # Process words and get result
     local result
     result=$(process_words "$password" "${input_words[@]}")
 
     # Output results
+    echo ""
     if [[ -n "$output_file" ]]; then
         echo "$result" > "$output_file"
         chmod "${PERMISSIONS}" "$output_file"
         echo "$result"
-        echo "Output saved to ${output_file}"
+        if [[ $silent_mode -eq 0 ]]; then
+        echo ""
+            echo "Output saved to ${output_file}"
+        fi
     else
+        echo ""
         echo "$result"
+    fi
+
+    if [[ $silent_mode -eq 0 ]]; then
+    echo ""
+    echo ""
+        read -p "Press enter to clear screen and continue..."
+        clear_screen
     fi
 }
 
-# Trap for cleanup
+# Set up cleanup trap
 trap cleanup EXIT
 
-# Start script execution with proper error handling
-set -o errexit  # Exit on error
-set -o nounset  # Exit on undefined variable
-set -o pipefail # Exit on pipe failure
+# Enable strict mode
+set -o errexit
+set -o nounset
+set -o pipefail
 
 # Start the script
 main "$@"
