@@ -94,11 +94,12 @@ UTF-8 terminal support
 Clone the repository
 Make the script executable:
 
-bashCopychmod +x scypher.sh
+bashCopy chmod +x scypher.sh
 
 Verify the script works:
 
-bashCopy./scypher.sh --help
+bashCopy ./scypher.sh --help
+
 📜 License and Disclaimer
 License
 This project is released under the MIT License. You are free to:
