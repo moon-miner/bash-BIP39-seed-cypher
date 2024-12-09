@@ -14,6 +14,54 @@ if ((BASH_VERSINFO[0] < 4)); then
     exit 1
 fi
 
+# OS Compatibility Check
+check_system_compatibility() {
+    local os_name
+    os_name=$(uname -s)
+
+    case "$os_name" in
+        Linux)
+            # Check for GNU coreutils
+            if ! command -v sha256sum >/dev/null 2>&1; then
+                echo "Error: sha256sum not found. Please install GNU coreutils." >&2
+                exit "${EXIT_ERROR}"
+            fi
+            ;;
+        Darwin)
+            # macOS specific checks
+            if ! command -v sha256sum >/dev/null 2>&1; then
+                if command -v gsha256sum >/dev/null 2>&1; then
+                    # Create alias for GNU version if available
+                    sha256sum() { gsha256sum "$@"; }
+                else
+                    echo "Error: sha256sum not found. Please install coreutils via Homebrew:" >&2
+                    echo "brew install coreutils" >&2
+                    exit "${EXIT_ERROR}"
+                fi
+            fi
+            ;;
+        MINGW*|CYGWIN*|MSYS*)
+            # Windows specific checks
+            if ! command -v sha256sum >/dev/null 2>&1; then
+                echo "Error: sha256sum not found. Please install GNU coreutils for Windows." >&2
+                exit "${EXIT_ERROR}"
+            fi
+            # Check for Windows-specific line endings
+            if [[ "$(printf '\r')" == $'\r' ]]; then
+                echo "Warning: Windows line endings detected. This may cause issues." >&2
+            fi
+            ;;
+        *)
+            echo "Warning: Untested operating system ($os_name). Proceed with caution." >&2
+            ;;
+    esac
+
+    # Check terminal capabilities
+    if [[ -z "${TERM}" || "${TERM}" == "dumb" ]]; then
+        echo "Warning: Limited terminal capabilities detected. ASCII art may not display correctly." >&2
+    fi
+}
+
 # Constants
 readonly EXIT_SUCCESS=0
 readonly EXIT_ERROR=1
