@@ -62,6 +62,12 @@ Word frequency: Max 1.5% occurrence
 ## 💻 Usage Example
 
 ```bash
+# To display the help message and all available options:
+
+./scypher.sh --help
+# or
+./scypher.sh -h
+
 # Basic usage
 ./scypher.sh word1 word2 word3
 
