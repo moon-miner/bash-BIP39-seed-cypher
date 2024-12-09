@@ -143,7 +143,8 @@ Constant memory usage
 No disk I/O beyond initial loading
 
 🤝 Contributing
-Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements.
+Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests
+for any improvements.
 Please note that this project was developed with significant assistance from AI, and I am not a real developer.
 
 Made with ❤️ for the Open Source Community
