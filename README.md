@@ -12,26 +12,26 @@ The transformation is:
 - Statistically uniform
 - Maintaining BIP39 format
 
-## 🔥 Installation Methods
+🔥 Installation Methods
 
-### Method 1: Blockchain Installation (Recommended)
+Method 1: Blockchain Installation (Recommended)
 The main script `scypher.sh` is stored securely on the blockchain, ensuring it will never be lost. To install:
 
-1. Download the loader script:
+1. Download the blockchain fetcher script:
 ```bash
-curl -O https://raw.githubusercontent.com/moon-miner/bash-BIP39-seed-cypher/refs/heads/main/scypherdload.sh
-chmod +x scypherdload.sh
+curl -O https://raw.githubusercontent.com/moon-miner/bash-BIP39-seed-cypher/refs/heads/main/dlfb.sh
+chmod +x dlfb.sh
 ```
 
-2. Verify the loader script integrity:
+2. Verify the fetcher script integrity:
 ```bash
-# The MD5 hash of scypherdload.sh should be:
-393cd4d53ac3d0316d7d7cf8d40fdcc1
+# The MD5 hash of dlfb.sh should be:
+f4c99fc63b1b38afc87b3801a2372f79
 ```
 
-3. Run the loader to retrieve the main script from the blockchain:
+3. Run the fetcher to retrieve the main script from the blockchain:
 ```bash
-./scypherdload.sh
+./dlfb.sh
 ```
 
 This will:
@@ -42,7 +42,7 @@ This will:
 
 The downloader ensures you always get the authentic, unmodified version of the script directly from the blockchain.
 
-### Method 2: Traditional Installation
+Method 2: Traditional Installation
 If you prefer the traditional method:
 
 1. Clone the repository
