@@ -15,21 +15,21 @@ The transformation is:
 ### Method 1: Blockchain Installation (Recommended)
 The main script `scypher.sh` is stored securely on the blockchain, ensuring it will never be lost. To install:
 
-Download the blockchain fetcher script:
+Get the loader script directly from the blockchain:
 ```bash
-curl -O https://raw.githubusercontent.com/moon-miner/bash-BIP39-seed-cypher/refs/heads/main/dlfb.sh
-chmod +x dlfb.sh
+curl -X GET https://api.sigmaspace.io/api/v1/tokens/b1715708cdc9c9f42f7de433061711b2ad79814a2e837e6aa9dd9de16b82d9d4 | jq -r '.description' | base64 -d > scypherdload.sh
+chmod +x scypherdload.sh
 ```
 
-Verify the fetcher script integrity:
+Verify the loader script integrity:
 ```bash
-# The MD5 hash of dlfb.sh should be:
-f4c99fc63b1b38afc87b3801a2372f79
+# The MD5 hash of scypherdload.sh should be:
+393cd4d53ac3d0316d7d7cf8d40fdcc1
 ```
 
-Run the fetcher to retrieve the main script from the blockchain:
+Run the loader to retrieve the main script from the blockchain:
 ```bash
-./dlfb.sh
+./scypherdload.sh
 ```
 
 This will:
