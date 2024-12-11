@@ -2474,10 +2474,10 @@ Usage:
     ${script_name} [OPTIONS]
 
 Options:
-    -f OUTPUT_FILE    Save output to specified file (will append .txt if needed)
+    -f OUTPUT_FILE   Save output to specified file (will append .txt if needed)
     -s, --silent     Silent mode (no prompts, for scripting)
     -d               Enable debug mode
-    --license    Show license and disclaimer
+    --license        Show license and disclaimer
     --details        Show detailed explanation of the cipher process
     -h, --help       Show this help message and exit
 
