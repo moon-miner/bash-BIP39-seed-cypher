@@ -1,0 +1,596 @@
+ 
+==================================================
+ANÁLISIS DETALLADO DE RESULTADOS
+==================================================
+
+1. ESTADÍSTICAS GLOBALES
+------------------------------
+Total de pruebas ejecutadas: 50000
+Pruebas exitosas: 50000
+Palabras únicas totales: 2048
+Frecuencia promedio: 585.94
+
+Estadísticas de frecuencia de palabras:
+- Media: 585.94
+- Desviación estándar: 23.67
+- Mediana: 586.00
+- Asimetría: 0.10
+- Curtosis: -0.08
+
+2. ANÁLISIS DE REVERSIBILIDAD
+------------------------------
+Tests realizados: 100
+Reversiones exitosas: 100
+Reversiones fallidas: 0
+Tasa de éxito: 100.00%
+
+3. ANÁLISIS POR POSICIÓN
+------------------------------
+
+Posición 0:
+- Entropía: 10.9703 bits
+- P-value: 0.7746
+- Chi-square: 1997.4846
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.88
+- Palabras más frecuentes:
+  * 'capable': 41 veces
+  * 'field': 40 veces
+  * 'asthma': 40 veces
+  * 'curve': 39 veces
+  * 'cause': 39 veces
+- Palabras menos frecuentes:
+  * 'mail': 9 veces
+  * 'north': 9 veces
+  * 'weather': 12 veces
+- Autocorrelación (lag-1): 0.0006
+- Estadísticas de distribución:
+  * Asimetría: 0.1791
+  * Curtosis: -0.1614
+
+Posición 1:
+- Entropía: 10.9702 bits
+- P-value: 0.7260
+- Chi-square: 2007.1464
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.89
+- Palabras más frecuentes:
+  * 'ecology': 41 veces
+  * 'churn': 41 veces
+  * 'lobster': 40 veces
+  * 'inquiry': 40 veces
+  * 'dust': 40 veces
+- Palabras menos frecuentes:
+  * 'day': 9 veces
+  * 'dice': 10 veces
+  * 'dizzy': 11 veces
+- Autocorrelación (lag-1): 0.0045
+- Estadísticas de distribución:
+  * Asimetría: 0.2116
+  * Curtosis: 0.0384
+
+Posición 2:
+- Entropía: 10.9707 bits
+- P-value: 0.9047
+- Chi-square: 1962.7675
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.84
+- Palabras más frecuentes:
+  * 'clinic': 40 veces
+  * 'enter': 39 veces
+  * 'diamond': 39 veces
+  * 'powder': 38 veces
+  * 'basic': 38 veces
+- Palabras menos frecuentes:
+  * 'resist': 10 veces
+  * 'pyramid': 10 veces
+  * 'loyal': 10 veces
+- Autocorrelación (lag-1): 0.0037
+- Estadísticas de distribución:
+  * Asimetría: 0.1370
+  * Curtosis: -0.2012
+
+Posición 3:
+- Entropía: 10.9691 bits
+- P-value: 0.2853
+- Chi-square: 2081.8210
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.98
+- Palabras más frecuentes:
+  * 'course': 41 veces
+  * 'analyst': 41 veces
+  * 'shadow': 40 veces
+  * 'turn': 40 veces
+  * 'unique': 40 veces
+- Palabras menos frecuentes:
+  * 'guard': 10 veces
+  * 'thunder': 11 veces
+  * 'absorb': 12 veces
+- Autocorrelación (lag-1): -0.0052
+- Estadísticas de distribución:
+  * Asimetría: 0.2215
+  * Curtosis: -0.0286
+
+Posición 4:
+- Entropía: 10.9698 bits
+- P-value: 0.6397
+- Chi-square: 2022.5399
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.91
+- Palabras más frecuentes:
+  * 'shuffle': 42 veces
+  * 'eyebrow': 41 veces
+  * 'photo': 40 veces
+  * 'abstract': 40 veces
+  * 'action': 39 veces
+- Palabras menos frecuentes:
+  * 'acoustic': 10 veces
+  * 'curious': 10 veces
+  * 'coconut': 12 veces
+- Autocorrelación (lag-1): 0.0040
+- Estadísticas de distribución:
+  * Asimetría: 0.1379
+  * Curtosis: -0.1146
+
+Posición 5:
+- Entropía: 10.9689 bits
+- P-value: 0.2416
+- Chi-square: 2090.5003
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.99
+- Palabras más frecuentes:
+  * 'bacon': 42 veces
+  * 'pretty': 42 veces
+  * 'excess': 41 veces
+  * 'vote': 41 veces
+  * 'pudding': 41 veces
+- Palabras menos frecuentes:
+  * 'track': 10 veces
+  * 'trim': 11 veces
+  * 'degree': 11 veces
+- Autocorrelación (lag-1): 0.0029
+- Estadísticas de distribución:
+  * Asimetría: 0.2181
+  * Curtosis: 0.0978
+
+Posición 6:
+- Entropía: 10.9683 bits
+- P-value: 0.1191
+- Chi-square: 2121.6966
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 5.03
+- Palabras más frecuentes:
+  * 'income': 42 veces
+  * 'huge': 41 veces
+  * 'gate': 40 veces
+  * 'immense': 40 veces
+  * 'what': 40 veces
+- Palabras menos frecuentes:
+  * 'glide': 10 veces
+  * 'duck': 10 veces
+  * 'latin': 10 veces
+- Autocorrelación (lag-1): -0.0042
+- Estadísticas de distribución:
+  * Asimetría: 0.1241
+  * Curtosis: 0.0137
+
+Posición 7:
+- Entropía: 10.9691 bits
+- P-value: 0.2892
+- Chi-square: 2081.0841
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.98
+- Palabras más frecuentes:
+  * 'sheriff': 44 veces
+  * 'erase': 41 veces
+  * 'kitchen': 41 veces
+  * 'have': 41 veces
+  * 'gorilla': 41 veces
+- Palabras menos frecuentes:
+  * 'absent': 9 veces
+  * 'today': 10 veces
+  * 'price': 10 veces
+- Autocorrelación (lag-1): -0.0024
+- Estadísticas de distribución:
+  * Asimetría: 0.2262
+  * Curtosis: 0.1314
+
+Posición 8:
+- Entropía: 10.9687 bits
+- P-value: 0.1490
+- Chi-square: 2112.6079
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 5.02
+- Palabras más frecuentes:
+  * 'fine': 47 veces
+  * 'pony': 44 veces
+  * 'since': 40 veces
+  * 'nephew': 40 veces
+  * 'quote': 40 veces
+- Palabras menos frecuentes:
+  * 'cradle': 11 veces
+  * 'surprise': 11 veces
+  * 'museum': 12 veces
+- Autocorrelación (lag-1): -0.0026
+- Estadísticas de distribución:
+  * Asimetría: 0.2663
+  * Curtosis: 0.1922
+
+Posición 9:
+- Entropía: 10.9688 bits
+- P-value: 0.2397
+- Chi-square: 2090.9097
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.99
+- Palabras más frecuentes:
+  * 'legal': 43 veces
+  * 'inhale': 42 veces
+  * 'couch': 41 veces
+  * 'captain': 39 veces
+  * 'blush': 38 veces
+- Palabras menos frecuentes:
+  * 'afford': 10 veces
+  * 'acquire': 10 veces
+  * 'shield': 10 veces
+- Autocorrelación (lag-1): -0.0017
+- Estadísticas de distribución:
+  * Asimetría: 0.1247
+  * Curtosis: -0.0664
+
+Posición 10:
+- Entropía: 10.9697 bits
+- P-value: 0.5033
+- Chi-square: 2044.8112
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.94
+- Palabras más frecuentes:
+  * 'aware': 42 veces
+  * 'spread': 41 veces
+  * 'pelican': 41 veces
+  * 'denial': 40 veces
+  * 'paper': 40 veces
+- Palabras menos frecuentes:
+  * 'satisfy': 9 veces
+  * 'person': 10 veces
+  * 'forum': 11 veces
+- Autocorrelación (lag-1): 0.0057
+- Estadísticas de distribución:
+  * Asimetría: 0.2512
+  * Curtosis: 0.0643
+
+Posición 11:
+- Entropía: 10.9694 bits
+- P-value: 0.3960
+- Chi-square: 2062.2517
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.96
+- Palabras más frecuentes:
+  * 'indicate': 44 veces
+  * 'margin': 43 veces
+  * 'pig': 43 veces
+  * 'denial': 42 veces
+  * 'theory': 41 veces
+- Palabras menos frecuentes:
+  * 'kiss': 9 veces
+  * 'guitar': 10 veces
+  * 'festival': 10 veces
+- Autocorrelación (lag-1): -0.0023
+- Estadísticas de distribución:
+  * Asimetría: 0.2416
+  * Curtosis: 0.3231
+
+Posición 12:
+- Entropía: 10.9695 bits
+- P-value: 0.4549
+- Chi-square: 2052.5898
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.95
+- Palabras más frecuentes:
+  * 'twelve': 42 veces
+  * 'obscure': 42 veces
+  * 'erode': 41 veces
+  * 'page': 41 veces
+  * 'museum': 40 veces
+- Palabras menos frecuentes:
+  * 'pencil': 10 veces
+  * 'drift': 11 veces
+  * 'join': 11 veces
+- Autocorrelación (lag-1): -0.0078
+- Estadísticas de distribución:
+  * Asimetría: 0.1947
+  * Curtosis: -0.0188
+
+Posición 13:
+- Entropía: 10.9685 bits
+- P-value: 0.1301
+- Chi-square: 2118.1757
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 5.03
+- Palabras más frecuentes:
+  * 'echo': 41 veces
+  * 'sun': 40 veces
+  * 'sense': 40 veces
+  * 'coil': 40 veces
+  * 'famous': 40 veces
+- Palabras menos frecuentes:
+  * 'picture': 9 veces
+  * 'bacon': 10 veces
+  * 'endorse': 10 veces
+- Autocorrelación (lag-1): 0.0050
+- Estadísticas de distribución:
+  * Asimetría: 0.1774
+  * Curtosis: -0.0786
+
+Posición 14:
+- Entropía: 10.9694 bits
+- P-value: 0.4448
+- Chi-square: 2054.2274
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.95
+- Palabras más frecuentes:
+  * 'light': 45 veces
+  * 'marble': 42 veces
+  * 'prefer': 42 veces
+  * 'ski': 41 veces
+  * 'round': 39 veces
+- Palabras menos frecuentes:
+  * 'absorb': 10 veces
+  * 'myself': 11 veces
+  * 'uncle': 11 veces
+- Autocorrelación (lag-1): -0.0012
+- Estadísticas de distribución:
+  * Asimetría: 0.1728
+  * Curtosis: -0.0401
+
+Posición 15:
+- Entropía: 10.9699 bits
+- P-value: 0.6173
+- Chi-square: 2026.3064
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.92
+- Palabras más frecuentes:
+  * 'critic': 43 veces
+  * 'gloom': 41 veces
+  * 'require': 40 veces
+  * 'impact': 39 veces
+  * 'spin': 39 veces
+- Palabras menos frecuentes:
+  * 'ginger': 12 veces
+  * 'service': 12 veces
+  * 'option': 12 veces
+- Autocorrelación (lag-1): 0.0052
+- Estadísticas de distribución:
+  * Asimetría: 0.1948
+  * Curtosis: -0.0964
+
+Posición 16:
+- Entropía: 10.9692 bits
+- P-value: 0.3760
+- Chi-square: 2065.6088
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.96
+- Palabras más frecuentes:
+  * 'news': 45 veces
+  * 'catch': 44 veces
+  * 'pact': 43 veces
+  * 'increase': 40 veces
+  * 'cereal': 40 veces
+- Palabras menos frecuentes:
+  * 'orchard': 9 veces
+  * 'ignore': 9 veces
+  * 'walk': 10 veces
+- Autocorrelación (lag-1): -0.0032
+- Estadísticas de distribución:
+  * Asimetría: 0.1723
+  * Curtosis: 0.1641
+
+Posición 17:
+- Entropía: 10.9690 bits
+- P-value: 0.2548
+- Chi-square: 2087.7982
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.99
+- Palabras más frecuentes:
+  * 'half': 42 veces
+  * 'shiver': 41 veces
+  * 'genius': 40 veces
+  * 'way': 40 veces
+  * 'salute': 40 veces
+- Palabras menos frecuentes:
+  * 'cream': 10 veces
+  * 'want': 11 veces
+  * 'observe': 11 veces
+- Autocorrelación (lag-1): -0.0007
+- Estadísticas de distribución:
+  * Asimetría: 0.2198
+  * Curtosis: 0.0094
+
+Posición 18:
+- Entropía: 10.9694 bits
+- P-value: 0.3842
+- Chi-square: 2064.2168
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.96
+- Palabras más frecuentes:
+  * 'august': 48 veces
+  * 'original': 48 veces
+  * 'chief': 43 veces
+  * 'guide': 41 veces
+  * 'blast': 41 veces
+- Palabras menos frecuentes:
+  * 'brisk': 9 veces
+  * 'float': 11 veces
+  * 'glad': 11 veces
+- Autocorrelación (lag-1): 0.0011
+- Estadísticas de distribución:
+  * Asimetría: 0.2827
+  * Curtosis: 0.3609
+
+Posición 19:
+- Entropía: 10.9694 bits
+- P-value: 0.4844
+- Chi-square: 2047.8408
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.94
+- Palabras más frecuentes:
+  * 'practice': 39 veces
+  * 'cruise': 39 veces
+  * 'price': 39 veces
+  * 'ethics': 38 veces
+  * 'cotton': 38 veces
+- Palabras menos frecuentes:
+  * 'assume': 10 veces
+  * 'survey': 10 veces
+  * 'color': 10 veces
+- Autocorrelación (lag-1): -0.0050
+- Estadísticas de distribución:
+  * Asimetría: 0.1222
+  * Curtosis: -0.2909
+
+Posición 20:
+- Entropía: 10.9687 bits
+- P-value: 0.2052
+- Chi-square: 2098.4426
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 5.00
+- Palabras más frecuentes:
+  * 'dream': 43 veces
+  * 'cream': 41 veces
+  * 'sight': 41 veces
+  * 'hip': 41 veces
+  * 'honey': 40 veces
+- Palabras menos frecuentes:
+  * 'evoke': 9 veces
+  * 'wagon': 11 veces
+  * 'isolate': 11 veces
+- Autocorrelación (lag-1): 0.0029
+- Estadísticas de distribución:
+  * Asimetría: 0.1727
+  * Curtosis: 0.1256
+
+Posición 21:
+- Entropía: 10.9702 bits
+- P-value: 0.7217
+- Chi-square: 2007.9652
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.89
+- Palabras más frecuentes:
+  * 'fringe': 43 veces
+  * 'siege': 43 veces
+  * 'silk': 42 veces
+  * 'bubble': 41 veces
+  * 'fine': 41 veces
+- Palabras menos frecuentes:
+  * 'stand': 10 veces
+  * 'dove': 10 veces
+  * 'wedding': 10 veces
+- Autocorrelación (lag-1): 0.0018
+- Estadísticas de distribución:
+  * Asimetría: 0.2518
+  * Curtosis: 0.1312
+
+Posición 22:
+- Entropía: 10.9710 bits
+- P-value: 0.9049
+- Chi-square: 1962.6856
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.84
+- Palabras más frecuentes:
+  * 'rib': 45 veces
+  * 'echo': 44 veces
+  * 'quality': 42 veces
+  * 'avocado': 41 veces
+  * 'board': 41 veces
+- Palabras menos frecuentes:
+  * 'private': 10 veces
+  * 'athlete': 11 veces
+  * 'inform': 11 veces
+- Autocorrelación (lag-1): 0.0022
+- Estadísticas de distribución:
+  * Asimetría: 0.3010
+  * Curtosis: 0.2261
+
+Posición 23:
+- Entropía: 10.9699 bits
+- P-value: 0.6905
+- Chi-square: 2013.6968
+- Palabras únicas: 2047
+- Media: 24.43
+- Desviación estándar: 4.90
+- Palabras más frecuentes:
+  * 'noise': 45 veces
+  * 'simple': 43 veces
+  * 'tuition': 40 veces
+  * 'retire': 40 veces
+  * 'silk': 39 veces
+- Palabras menos frecuentes:
+  * 'candy': 7 veces
+  * 'replace': 10 veces
+  * 'arrow': 10 veces
+- Autocorrelación (lag-1): -0.0030
+- Estadísticas de distribución:
+  * Asimetría: 0.1523
+  * Curtosis: 0.1270
+
+4. ANÁLISIS DE PATRONES
+------------------------------
+Autocorrelaciones promedio por posición:
+Lag-1: 0.0000
+Lag-2: 0.0004
+Lag-3: -0.0010
+Lag-4: 0.0010
+Lag-5: 0.0005
+Lag-6: -0.0010
+Lag-7: 0.0001
+Lag-8: 0.0022
+Lag-9: 0.0004
+Lag-10: -0.0003
+
+5. DISTRIBUCIÓN DE PALABRAS
+------------------------------
+Palabras más frecuentes:
+- 'gloom': 663 veces
+- 'bacon': 661 veces
+- 'menu': 661 veces
+- 'critic': 654 veces
+- 'permit': 654 veces
+- 'brave': 653 veces
+- 'captain': 652 veces
+- 'shiver': 651 veces
+- 'ethics': 651 veces
+- 'neither': 650 veces
+
+Palabras menos frecuentes:
+- 'task': 644 veces
+- 'slogan': 644 veces
+- 'digital': 645 veces
+- 'wheel': 645 veces
+- 'exile': 646 veces
+- 'bubble': 646 veces
+- 'tenant': 647 veces
+- 'pattern': 647 veces
+- 'absurd': 649 veces
+- 'shy': 649 veces
