@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SCypher - Enhanced BIP39 Seed Cipher v1.0
-# A tool to encode/decode BIP39 seed phrases using the Fisher-Yates and Perfect Shuffle algorithms
+# A tool to encode/decode BIP39 seed phrases using the Fisher-Yates (Durstenfeld's variant) and Perfect Shuffle algorithms.
 #
 # System Requirements:
 # - Bash 4.0 or higher (for associative arrays)
@@ -2466,7 +2466,7 @@ show_usage() {
 
     cat << EOF
 SCypher v${VERSION} - Enhanced BIP39 Seed Cipher
-A tool to encode/decode BIP39 seed phrases using the Fisher-Yates and Perfect Shuffle algorithms
+A tool to encode/decode BIP39 seed phrases using the Fisher-Yates (Durstenfeld's variant) and Perfect Shuffle algorithms.
 
 ⚠️  IMPORTANT: Please read the license and disclaimer before use (--license)
 
