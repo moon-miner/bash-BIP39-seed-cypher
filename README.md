@@ -2,38 +2,46 @@
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
 
 ## 📋 Table of Contents
-- [Project Description](#-project-description)
-- [Installation](#-installation-methods)
-- [Usage](#-usage)
+- [Project Description](#project-description)
+- [Installation](#installation)
+  - [Method 1: Blockchain Installation](#method-1-blockchain-installation-recommended)
+  - [Method 2: Traditional Installation](#method-2-traditional-installation)
+- [Usage](#usage)
   - [Requirements](#requirements)
   - [Examples](#examples)
   - [Interactive Flow](#interactive-flow)
-- [Security](#-security)
-  - [Features](#security-features)
-  - [Strengths](#security-strengths)
-  - [Analysis Results](#security-analysis)
-  - [Considerations](#security-considerations)
-- [Technical Details](#-technical-details)
-  - [Implementation](#implementation-notes)
+- [Security](#security)
+  - [Security Features](#security-features)
+  - [Security Strengths](#security-strengths)
+  - [Security Analysis](#security-analysis)
+  - [Security Considerations](#security-considerations)
+- [Technical Details](#technical-details)
+  - [Implementation Notes](#implementation-notes)
   - [Performance](#performance)
   - [Script Analyzer](#script-analyzer)
-- [Legal](#-legal)
+    - [Analyzer Requirements](#analyzer-requirements)
+    - [Analyzer Installation](#analyzer-installation)
+    - [Analyzer Usage](#analyzer-usage)
+    - [Analyzer Output](#analyzer-output)
+    - [Analysis Features](#analysis-features)
+- [Legal](#legal)
   - [License](#license)
   - [Disclaimer](#disclaimer)
-- [Contributing](#-contributing)
+- [Contributing](#contributing)
 
 ## 📝 Project Description
 This script provides a secure way to transform BIP39 seed phrases into alternative valid BIP39 phrases and back, using password-based encryption. It maintains the original security properties of BIP39 while adding an extra layer of protection through reversible transformation.
 
 The transformation is:
-* Completely reversible
-* Password-dependent
-* Statistically uniform
-* Maintaining BIP39 format
+- Completely reversible
+- Password-dependent 
+- Statistically uniform
+- Maintaining BIP39 format
 
 ## 🔥 Installation Methods (BETA VERSION)
+
 ### Method 1: Blockchain Installation (Recommended)
-The main script `scypher.sh` is stored securely on the blockchain, ensuring it will never be lost. To install:
+The main script scypher.sh is stored securely on the blockchain, ensuring it will never be lost. To install:
 
 Get the loader script directly from the blockchain:
 ```bash
@@ -55,30 +63,30 @@ Run the loader to retrieve the main script from the blockchain:
 This will:
 - Fetch the encoded script pieces from the blockchain
 - Automatically decode and decompress them
-- Create the `scypher.sh` file in your current directory
+- Create the scypher.sh file in your current directory
 - Clean up any temporary files
 
 The downloader ensures you always get the authentic, unmodified version of the script directly from the blockchain.
 
 ### Method 2: Traditional Installation
 If you prefer the traditional method:
-
 1. Clone the repository
 2. Make the script executable:
-```bash
-chmod +x scypher.sh
-```
+   ```bash
+   chmod +x scypher.sh
+   ```
 3. Verify the script works:
-```bash
-./scypher.sh --help
-```
+   ```bash
+   ./scypher.sh --help
+   ```
 
 ## 💻 Usage
+
 ### Requirements
-* Bash 4.0 or higher
-* Basic POSIX utilities (read, printf, etc.)
-* sha256sum command (usually part of coreutils)
-* UTF-8 terminal support
+- Bash 4.0 or higher
+- Basic POSIX utilities (read, printf, etc.)
+- sha256sum command (usually part of coreutils)
+- UTF-8 terminal support
 
 ### Examples
 ```bash
@@ -108,131 +116,140 @@ chmod +x scypher.sh
 5. Press enter to clear screen
 
 ## 🔒 Security
+
 ### Security Features
-* Perfect Shuffle Algorithm: Implements an advanced shuffling mechanism for optimal statistical distribution
-* Interactive Input: Secure input method for seed phrases and passwords
-* Multiple Input Methods: Support for direct input or reading from files
-* Password-Based Transformation: Uses password input to generate unique transformations
-* Reversible Operations: Guarantees 100% accuracy in reversing transformations
-* BIP39 Compliance: All output remains valid BIP39 words
-* Cross-Platform Support: Works on Linux, macOS, and Windows (with bash)
-* No External Dependencies: Uses only bash built-ins and core utilities
-* Silent Mode: Available for script automation
+- Perfect Shuffle Algorithm: Implements an advanced shuffling mechanism for optimal statistical distribution
+- Interactive Input: Secure input method for seed phrases and passwords
+- Multiple Input Methods: Support for direct input or reading from files
+- Password-Based Transformation: Uses password input to generate unique transformations
+- Reversible Operations: Guarantees 100% accuracy in reversing transformations
+- BIP39 Compliance: All output remains valid BIP39 words
+- Cross-Platform Support: Works on Linux, macOS, and Windows (with bash)
+- No External Dependencies: Uses only bash built-ins and core utilities
+- Silent Mode: Available for script automation
 
 ### Security Strengths
-* Statistical Uniformity: Demonstrated through extensive testing
-* No Data Leakage: Secure handling of sensitive information
-* Memory Safety: Proper cleanup of sensitive data
-* Input Validation: Robust error checking and input sanitization
-* Deterministic Operation: Same input always produces same output
-* No Temporary Files: All operations performed in memory
-* Screen Clearing: Sensitive information is cleared from display
+- Statistical Uniformity: Demonstrated through extensive testing
+- No Data Leakage: Secure handling of sensitive information
+- Memory Safety: Proper cleanup of sensitive data
+- Input Validation: Robust error checking and input sanitization
+- Deterministic Operation: Same input always produces same output
+- No Temporary Files: All operations performed in memory
+- Screen Clearing: Sensitive information is cleared from display
 
 ### Security Analysis
 Extensive testing using our Python Script Analyzer tool has shown:
 
 #### Distribution Analysis
-* Uniform distribution across all word positions (Chi-square p-values > 0.05)
-* No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
-* High entropy maintained across all positions
+- Uniform distribution across all word positions (Chi-square p-values > 0.05)
+- No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
+- High entropy maintained across all positions
 
 #### Reversibility Testing
-* 100% success rate in reversibility tests
-* Perfect reconstruction of original seed phrases
-* No data loss or corruption in transformation process
+- 100% success rate in reversibility tests
+- Perfect reconstruction of original seed phrases
+- No data loss or corruption in transformation process
 
 #### Test Results Summary
-* Total tests: 10,000
-* Success rate: 100%
-* Reversibility: 100%
-* Chi-square p-values: 0.08-0.99 (all positions)
-* Word frequency: Max 1.5% occurrence
+- Total tests: 10,000
+- Success rate: 100%
+- Reversibility: 100%
+- Chi-square p-values: 0.08-0.99 (all positions)
+- Word frequency: Max 1.5% occurrence
 
 ### Security Considerations
 While this tool has been thoroughly tested and analyzed, users should:
-* Keep their passwords secure
-* Not share transformed seed phrases
-* Maintain secure backups of original seeds
-* Test recovery process before use
-* Verify script integrity before use
+- Keep their passwords secure
+- Not share transformed seed phrases
+- Maintain secure backups of original seeds
+- Test recovery process before use
+- Verify script integrity before use
 
 ## 🛠 Technical Details
+
 ### Implementation Notes
-* Uses Fisher-Yates shuffle with cryptographic seeding
-* Implements perfect shuffle algorithm for optimal distribution
-* Employs secure password handling mechanisms
-* Includes comprehensive input validation
+- Uses Fisher-Yates shuffle with cryptographic seeding
+- Implements perfect shuffle algorithm for optimal distribution
+- Employs secure password handling mechanisms
+- Includes comprehensive input validation
 
 ### Performance
-* Linear time complexity O(n) for operations
-* Constant memory usage
-* No disk I/O beyond initial loading
+- Linear time complexity O(n) for operations
+- Constant memory usage
+- No disk I/O beyond initial loading
 
 ### Script Analyzer
 A Python-based analysis tool is included to verify the statistical properties and security characteristics of the cipher implementation.
 
 #### Analyzer Requirements
-* Python 3.8 or higher
-* Required Python packages:
-  ```bash
-  numpy
-  pandas
-  scipy
-  tqdm
-  matplotlib
-  seaborn
-  ```
+- Python 3.8 or higher
+- Required Python packages:
+  - numpy
+  - pandas
+  - scipy
+  - tqdm
+  - matplotlib
+  - seaborn
+  - psutil
 
 #### Analyzer Installation
 Install the required packages using pip:
 ```bash
-pip install numpy pandas scipy tqdm matplotlib seaborn
+pip install numpy pandas scipy tqdm matplotlib seaborn psutil
 ```
 
 #### Analyzer Usage
-Run the analyzer with default settings (10,000 tests):
+Basic usage with default settings:
 ```bash
-python script_analyzer.py
+python script_analyzer.py                  # Run with defaults (English UI, random passwords, high resources)
 ```
 
-The analyzer will:
-- Generate multiple test cases with random passwords
-- Analyze distribution patterns
-- Test reversibility
-- Generate statistical visualizations
-- Create detailed analysis reports
+Available options:
+```bash
+python script_analyzer.py -h               # Show help message with examples
+python script_analyzer.py -r 1             # Resource usage (1=low, 2=med, 3=high)
+python script_analyzer.py -p random        # Password mode (random/similar)
+python script_analyzer.py -l en            # Language (en/es)
+python script_analyzer.py -t 1000          # Number of tests
+python script_analyzer.py -rv 500          # Number of reversibility tests
+```
 
 #### Analyzer Output
 The analyzer creates:
-- JSON files with detailed analysis results in `analysis_results/`
-- Statistical plots in `analysis_results/plots/`
+- JSON files with detailed analysis results in analysis_results/
+- Statistical plots in analysis_results/plots/
 - Console output with key metrics and findings
+- Detailed terminal output saved to file
 
 #### Analysis Features
-* Distribution analysis across word positions
-* Chi-square tests for uniformity
-* Entropy calculations
-* Autocorrelation analysis
-* Frequency distribution visualization
-* Comprehensive reversibility testing
-* Statistical anomaly detection
+- Distribution analysis across word positions
+- Chi-square tests for uniformity
+- Entropy calculations
+- Autocorrelation analysis
+- Frequency distribution visualization
+- Comprehensive reversibility testing
+- Statistical anomaly detection
+- Resource usage optimization
+- Support for large-scale tests (10M+)
+- Bilingual interface (English/Spanish)
 
 ## 📜 Legal
+
 ### License
 This project is released under the MIT License. You are free to:
-* Use the software commercially
-* Modify the source code
-* Distribute the software
-* Use it privately
+- Use the software commercially
+- Modify the source code
+- Distribute the software
+- Use it privately
 
 ### Disclaimer
 THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The developers assume no responsibility for:
-* Loss of funds or assets
-* Incorrect usage of the software
-* Modifications made by third parties
-* Security implications of usage in specific contexts
+- Loss of funds or assets
+- Incorrect usage of the software
+- Modifications made by third parties
+- Security implications of usage in specific contexts
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests for any improvements. Please note that this project was developed with significant assistance from AI, and I am not a real developer.
