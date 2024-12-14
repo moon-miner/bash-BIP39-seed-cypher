@@ -14,20 +14,69 @@ import seaborn as sns
 from datetime import datetime
 import argparse
 import time
+import psutil
+import math
+import sys
+
+
+# Translation dictionary
+TRANSLATIONS = {
+    'en': {
+        'start_analysis': "Starting analysis with {} tests...",
+        'processing': "Processing encryptions",
+        'analyzing': "\nAnalyzing {} successful results...",
+        'testing_rev': "\nTesting reversibility...",
+        'verifying': "Verifying reversibility",
+        'completed': "\nAnalysis completed. Results saved in: {}"
+    },
+    'es': {
+        'start_analysis': "Iniciando análisis con {} pruebas...",
+        'processing': "Procesando cifrados",
+        'analyzing': "\nAnalizando {} resultados exitosos...",
+        'testing_rev': "\nProbando reversibilidad...",
+        'verifying': "Verificando reversibilidad",
+        'completed': "\nAnálisis completado. Resultados guardados en: {}"
+    }
+}
+
 
 class EnhancedAnalyzer:
-    def __init__(self, bash_script_path: str, n_tests: int = 10000, debug: bool = False):
+    def __init__(self, bash_script_path: str, n_tests: int = 10000, debug: bool = False,
+                 password_mode: str = 'random', resource_level: int = 3,
+                 language: str = 'en', rev_tests: int = 100):
         """
-        Inicializa el analizador con parámetros personalizados.
-
-        Args:
-            bash_script_path (str): Ruta al script bash
-            n_tests (int): Número de pruebas a realizar
-            debug (bool): Modo debug
+        Initialize the analyzer with custom parameters.
         """
         self.bash_script_path = bash_script_path
         self.n_tests = n_tests
         self.debug = debug
+        self.password_mode = password_mode
+        self.language = language
+        self.rev_tests = rev_tests
+
+        # Configure resources based on level
+        cpu_count = mp.cpu_count()
+        self.resource_configs = {
+            1: {  # Low
+                'processes': max(1, cpu_count // 4),
+                'batch_size': 1000,
+                'memory_limit': 0.25
+            },
+            2: {  # Medium
+                'processes': max(1, cpu_count // 2),
+                'batch_size': 5000,
+                'memory_limit': 0.5
+            },
+            3: {  # High
+                'processes': cpu_count,
+                'batch_size': 10000,
+                'memory_limit': 0.75
+            }
+        }
+
+        self.resource_config = self.resource_configs[resource_level]
+        self.texts = TRANSLATIONS[language]
+
         self.test_seed = [
             "ribbon", "slight", "frog", "oxygen", "range",
             "slam", "destroy", "dune", "fossil", "slow",
@@ -35,21 +84,81 @@ class EnhancedAnalyzer:
             "palm", "act", "reward", "foot", "deposit",
             "response", "fashion", "under", "sail"
         ]
+
+        # Setup directories
         self.results_dir = "analysis_results"
         self.plots_dir = os.path.join(self.results_dir, "plots")
         os.makedirs(self.results_dir, exist_ok=True)
         os.makedirs(self.plots_dir, exist_ok=True)
 
+    def generate_random_passwords(self) -> List[str]:
+        """
+        Generate random passwords maximizing differences between them.
+        """
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+        passwords = set()  # Using set to ensure uniqueness
+        batch_size = self.resource_config['batch_size']
+
+        while len(passwords) < self.n_tests:
+            # Generate a batch of passwords
+            new_batch = {
+                ''.join(np.random.choice(list(chars), size=np.random.randint(8, 20)))
+                for _ in range(min(batch_size, self.n_tests - len(passwords)))
+            }
+            passwords.update(new_batch)
+
+        return list(passwords)[:self.n_tests]
+
+    def generate_similar_passwords(self) -> List[str]:
+        """
+        Generate passwords with minimal variations between them.
+        """
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        chars_map = {c: i for i, c in enumerate(chars)}
+
+        base = list("aaaaAAA111")  # Base password
+        password_length = len(base)
+        passwords = []
+        positions = list(range(password_length))
+
+        def increment_position(pos: int) -> bool:
+            current = base[pos]
+            current_idx = chars_map[current]
+
+            if current_idx + 1 >= len(chars):
+                base[pos] = chars[0]
+                return True
+            else:
+                base[pos] = chars[current_idx + 1]
+                return False
+
+        def generate_next() -> str:
+            pos = positions[0]
+            while increment_position(pos):
+                pos_idx = positions.index(pos)
+                if pos_idx + 1 >= len(positions):
+                    pos = positions[0]
+                    positions.append(positions.pop(0))
+                else:
+                    pos = positions[pos_idx + 1]
+            return ''.join(base)
+
+        for _ in range(self.n_tests):
+            passwords.append(generate_next())
+
+        return passwords
+
+    def generate_passwords(self) -> List[str]:
+        """
+        Generate passwords according to selected mode.
+        """
+        if self.password_mode == 'similar':
+            return self.generate_similar_passwords()
+        return self.generate_random_passwords()
+
     def run_cipher(self, password: str, words: Optional[List[str]] = None) -> Optional[List[str]]:
         """
-        Ejecuta el cifrado con una contraseña dada.
-
-        Args:
-            password (str): Contraseña para el cifrado
-            words (List[str], optional): Lista de palabras a cifrar
-
-        Returns:
-            Optional[List[str]]: Lista de palabras cifradas o None si hay error
+        Execute cipher with given password.
         """
         try:
             input_words = words if words is not None else self.test_seed
@@ -70,23 +179,16 @@ class EnhancedAnalyzer:
                 return stdout.strip().split()
 
             if self.debug and stderr:
-                print(f"Error en el proceso: {stderr}")
+                print(f"Error in process: {stderr}")
             return None
         except Exception as e:
             if self.debug:
-                print(f"Error en run_cipher: {e}")
+                print(f"Error in run_cipher: {e}")
             return None
 
     def test_reversibility(self, cipher_result: List[str], password: str) -> Dict:
         """
-        Prueba la reversibilidad del cifrado.
-
-        Args:
-            cipher_result (List[str]): Resultado del cifrado
-            password (str): Contraseña usada
-
-        Returns:
-            Dict: Resultados de la prueba de reversibilidad
+        Test cipher reversibility.
         """
         try:
             if not cipher_result or len(cipher_result) != len(self.test_seed):
@@ -121,31 +223,12 @@ class EnhancedAnalyzer:
 
         except Exception as e:
             if self.debug:
-                print(f"Error en test_reversibility: {str(e)}")
+                print(f"Error in test_reversibility: {str(e)}")
             return {"success": False, "error": str(e)}
-
-    def generate_passwords(self) -> List[str]:
-        """
-        Genera contraseñas aleatorias para las pruebas.
-
-        Returns:
-            List[str]: Lista de contraseñas generadas
-        """
-        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-        return [
-            ''.join(np.random.choice(list(chars), size=np.random.randint(8, 20)))
-            for _ in range(self.n_tests)
-        ]
 
     def analyze_sequence(self, sequence: List[str]) -> Dict:
         """
-        Analiza una secuencia de palabras.
-
-        Args:
-            sequence (List[str]): Secuencia de palabras a analizar
-
-        Returns:
-            Dict: Resultados del análisis de secuencia
+        Analyze a sequence of words.
         """
         numeric_seq = np.array([hash(word) for word in sequence])
         normalized_seq = (numeric_seq - np.mean(numeric_seq)) / np.std(numeric_seq)
@@ -179,13 +262,7 @@ class EnhancedAnalyzer:
 
     def calculate_position_metrics(self, position_data: List[str]) -> Dict:
         """
-        Calcula métricas detalladas para una posición específica.
-
-        Args:
-            position_data (List[str]): Lista de palabras en una posición
-
-        Returns:
-            Dict: Métricas calculadas
+        Calculate detailed metrics for a specific position.
         """
         counts = Counter(position_data)
         total = len(position_data)
@@ -224,13 +301,7 @@ class EnhancedAnalyzer:
 
     def analyze_distribution(self, results: List[List[str]]) -> Dict:
         """
-        Analiza la distribución de palabras en los resultados.
-
-        Args:
-            results (List[List[str]]): Lista de resultados del cifrado
-
-        Returns:
-            Dict: Análisis de la distribución
+        Analyze word distribution in results.
         """
         n_positions = len(self.test_seed)
         analysis = {
@@ -267,23 +338,21 @@ class EnhancedAnalyzer:
 
     def generate_plots(self, analysis: Dict, timestamp: str):
         """
-        Genera gráficos para visualizar los resultados.
-
-        Args:
-            analysis (Dict): Resultados del análisis
-            timestamp (str): Marca de tiempo
+        Generate visualization plots.
         """
+        # Entropy plot
         plt.figure(figsize=(12, 6))
         positions = sorted(analysis['position_stats'].keys())
         entropies = [analysis['position_stats'][p]['entropy'] for p in positions]
         plt.plot(positions, entropies, 'b-', marker='o')
-        plt.title('Entropía por Posición')
-        plt.xlabel('Posición')
-        plt.ylabel('Entropía (bits)')
+        plt.title('Entropy by Position' if self.language == 'en' else 'Entropía por Posición')
+        plt.xlabel('Position' if self.language == 'en' else 'Posición')
+        plt.ylabel('Entropy (bits)' if self.language == 'en' else 'Entropía (bits)')
         plt.grid(True)
         plt.savefig(f"{self.plots_dir}/entropy_{timestamp}.png")
         plt.close()
 
+        # Autocorrelation plot
         plt.figure(figsize=(12, 6))
         avg_autocorr = np.zeros(10)
         for pos in positions:
@@ -292,187 +361,217 @@ class EnhancedAnalyzer:
         avg_autocorr /= len(positions)
 
         plt.plot(range(1, 11), avg_autocorr, 'r-', marker='o')
-        plt.title('Autocorrelación Promedio')
+        plt.title('Average Autocorrelation' if self.language == 'en' else 'Autocorrelación Promedio')
         plt.xlabel('Lag')
-        plt.ylabel('Correlación')
+        plt.ylabel('Correlation' if self.language == 'en' else 'Correlación')
         plt.grid(True)
         plt.savefig(f"{self.plots_dir}/autocorrelation_{timestamp}.png")
         plt.close()
 
+        # Word distribution plot
         plt.figure(figsize=(15, 8))
         words, counts = zip(*analysis['global_stats']['most_common'][:20])
         plt.bar(words, counts)
-        plt.title('20 Palabras Más Frecuentes')
+        plt.title('20 Most Frequent Words' if self.language == 'en' else '20 Palabras Más Frecuentes')
         plt.xticks(rotation=45, ha='right')
-        plt.ylabel('Frecuencia')
+        plt.ylabel('Frequency' if self.language == 'en' else 'Frecuencia')
         plt.tight_layout()
         plt.savefig(f"{self.plots_dir}/word_distribution_{timestamp}.png")
         plt.close()
 
-        # Nuevo gráfico: Distribución de p-values
+        # P-values distribution plot
         plt.figure(figsize=(12, 6))
         p_values = [analysis['position_stats'][p]['p_value'] for p in positions]
         plt.hist(p_values, bins=20, edgecolor='black')
-        plt.title('Distribución de P-values')
+        plt.title('P-values Distribution' if self.language == 'en' else 'Distribución de P-values')
         plt.xlabel('P-value')
-        plt.ylabel('Frecuencia')
+        plt.ylabel('Frequency' if self.language == 'en' else 'Frecuencia')
         plt.grid(True)
         plt.savefig(f"{self.plots_dir}/pvalue_distribution_{timestamp}.png")
         plt.close()
 
-    def print_detailed_results(self, analysis: Dict, timestamp: str):
+    def print_detailed_results(self, analysis: Dict, timestamp: str, terminal_output: List[str]):
         """
-        Imprime resultados detallados del análisis.
-
-        Args:
-            analysis (Dict): Resultados del análisis
-            timestamp (str): Marca de tiempo
+        Print and save detailed analysis results.
         """
-        print("\n" + "="*50)
-        print("ANÁLISIS DETALLADO DE RESULTADOS")
-        print("="*50)
+        # Start capturing output for file
+        output_lines = []
+        def print_and_save(text):
+            print(text)
+            output_lines.append(text)
+            terminal_output.append(text)
 
-        # Estadísticas globales
-        print("\n1. ESTADÍSTICAS GLOBALES")
-        print("-"*30)
-        print(f"Total de pruebas ejecutadas: {self.n_tests}")
-        print(f"Pruebas exitosas: {analysis['global_stats']['total_words'] // len(self.test_seed)}")
-        print(f"Palabras únicas totales: {analysis['global_stats']['unique_words']}")
-        print(f"Frecuencia promedio: {analysis['global_stats']['average_frequency']:.2f}")
+        # Configuration summary
+        print_and_save("\n" + "="*50)
+        print_and_save("CONFIGURATION SUMMARY" if self.language == 'en' else "RESUMEN DE CONFIGURACIÓN")
+        print_and_save("="*50)
+        print_and_save(f"\nPassword Mode: {self.password_mode}")
+        print_and_save(f"Resource Level: {list(self.resource_configs.keys())[list(self.resource_configs.values()).index(self.resource_config)]}")
+        print_and_save(f"Number of Tests: {self.n_tests}")
+        print_and_save(f"Reversibility Tests: {self.rev_tests}")
+        print_and_save(f"Language: {self.language}")
 
-        # Estadísticas de la distribución global
+        # Analysis results
+        print_and_save("\n" + "="*50)
+        print_and_save("DETAILED ANALYSIS RESULTS" if self.language == 'en' else "ANÁLISIS DETALLADO DE RESULTADOS")
+        print_and_save("="*50)
+
+        # Global statistics
+        title = "1. GLOBAL STATISTICS" if self.language == 'en' else "1. ESTADÍSTICAS GLOBALES"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
+        print_and_save(f"Total tests executed: {self.n_tests}" if self.language == 'en' else f"Total de pruebas ejecutadas: {self.n_tests}")
+        print_and_save(f"Successful tests: {analysis['global_stats']['total_words'] // len(self.test_seed)}" if self.language == 'en' else
+                      f"Pruebas exitosas: {analysis['global_stats']['total_words'] // len(self.test_seed)}")
+        print_and_save(f"Total unique words: {analysis['global_stats']['unique_words']}" if self.language == 'en' else
+                      f"Palabras únicas totales: {analysis['global_stats']['unique_words']}")
+        print_and_save(f"Average frequency: {analysis['global_stats']['average_frequency']:.2f}" if self.language == 'en' else
+                      f"Frecuencia promedio: {analysis['global_stats']['average_frequency']:.2f}")
+
+        # Word frequency statistics
         stats = analysis['global_stats']['word_frequency_stats']
-        print("\nEstadísticas de frecuencia de palabras:")
-        print(f"- Media: {stats['mean']:.2f}")
-        print(f"- Desviación estándar: {stats['std_dev']:.2f}")
-        print(f"- Mediana: {stats['median']:.2f}")
-        print(f"- Asimetría: {stats['skewness']:.2f}")
-        print(f"- Curtosis: {stats['kurtosis']:.2f}")
+        print_and_save("\nWord frequency statistics:" if self.language == 'en' else "\nEstadísticas de frecuencia de palabras:")
+        print_and_save(f"- Mean: {stats['mean']:.2f}")
+        print_and_save(f"- Standard deviation: {stats['std_dev']:.2f}")
+        print_and_save(f"- Median: {stats['median']:.2f}")
+        print_and_save(f"- Skewness: {stats['skewness']:.2f}")
+        print_and_save(f"- Kurtosis: {stats['kurtosis']:.2f}")
 
-        # Análisis de reversibilidad
-        print("\n2. ANÁLISIS DE REVERSIBILIDAD")
-        print("-"*30)
+        # Reversibility analysis
+        title = "2. REVERSIBILITY ANALYSIS" if self.language == 'en' else "2. ANÁLISIS DE REVERSIBILIDAD"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
         rev_stats = analysis['reversibility_analysis']
-        print(f"Tests realizados: {rev_stats['total_tests']}")
-        print(f"Reversiones exitosas: {rev_stats['successful_reversals']}")
-        print(f"Reversiones fallidas: {rev_stats['failed_reversals']}")
-        print(f"Tasa de éxito: {(rev_stats['successful_reversals']/rev_stats['total_tests'])*100:.2f}%")
+        print_and_save(f"Tests performed: {rev_stats['total_tests']}" if self.language == 'en' else f"Tests realizados: {rev_stats['total_tests']}")
+        print_and_save(f"Successful reversals: {rev_stats['successful_reversals']}" if self.language == 'en' else
+                      f"Reversiones exitosas: {rev_stats['successful_reversals']}")
+        print_and_save(f"Failed reversals: {rev_stats['failed_reversals']}" if self.language == 'en' else
+                      f"Reversiones fallidas: {rev_stats['failed_reversals']}")
+        print_and_save(f"Success rate: {(rev_stats['successful_reversals']/rev_stats['total_tests'])*100:.2f}%" if self.language == 'en' else
+                      f"Tasa de éxito: {(rev_stats['successful_reversals']/rev_stats['total_tests'])*100:.2f}%")
 
         if rev_stats['failed_reversals'] > 0:
-            print("\nDETALLE DE FALLOS:")
-            for detail in rev_stats['detailed_results'][:5]:  # Primeros 5 fallos
+            print_and_save("\nFAILURE DETAILS:" if self.language == 'en' else "\nDETALLE DE FALLOS:")
+            for detail in rev_stats['detailed_results'][:5]:
                 if not detail['is_reversible']:
-                    print(f"- Diferencias encontradas: {len(detail['differences'])}")
+                    print_and_save(f"- Differences found: {len(detail['differences'])}")
                     for diff in detail['differences']:
-                        print(f"  Posición {diff['position']}: {diff['original']} -> {diff['got']}")
+                        print_and_save(f"  Position {diff['position']}: {diff['original']} -> {diff['got']}")
 
-        # Análisis por posición
-        print("\n3. ANÁLISIS POR POSICIÓN")
-        print("-"*30)
+        # Position analysis
+        title = "3. POSITION ANALYSIS" if self.language == 'en' else "3. ANÁLISIS POR POSICIÓN"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
         for pos in range(len(self.test_seed)):
             stats = analysis['position_stats'][pos]
-            print(f"\nPosición {pos}:")
-            print(f"- Entropía: {stats['entropy']:.4f} bits")
-            print(f"- P-value: {stats['p_value']:.4f}")
-            print(f"- Chi-square: {stats['chi_square']:.4f}")
-            print(f"- Palabras únicas: {stats['unique_words']}")
-            print(f"- Media: {stats['mean']:.2f}")
-            print(f"- Desviación estándar: {stats['std_dev']:.2f}")
-            print("- Palabras más frecuentes:")
+            print_and_save(f"\nPosition {pos}:")
+            print_and_save(f"- Entropy: {stats['entropy']:.4f} bits")
+            print_and_save(f"- P-value: {stats['p_value']:.4f}")
+            print_and_save(f"- Chi-square: {stats['chi_square']:.4f}")
+            print_and_save(f"- Unique words: {stats['unique_words']}")
+            print_and_save(f"- Mean: {stats['mean']:.2f}")
+            print_and_save(f"- Standard deviation: {stats['std_dev']:.2f}")
+            print_and_save("- Most frequent words:")
             for word, count in stats['most_common'][:5]:
-                print(f"  * '{word}': {count} veces")
-            print("- Palabras menos frecuentes:")
+                print_and_save(f"  * '{word}': {count} times")
+            print_and_save("- Least frequent words:")
             for word, count in stats['least_common'][:3]:
-                print(f"  * '{word}': {count} veces")
-            print(f"- Autocorrelación (lag-1): {stats['autocorrelation'][0]:.4f}")
+                print_and_save(f"  * '{word}': {count} times")
+            print_and_save(f"- Autocorrelation (lag-1): {stats['autocorrelation'][0]:.4f}")
 
-            dist_stats = stats['distribution_stats']
-            print("- Estadísticas de distribución:")
-            print(f"  * Asimetría: {dist_stats['skewness']:.4f}")
-            print(f"  * Curtosis: {dist_stats['kurtosis']:.4f}")
-
-        # Análisis de patrones
-        print("\n4. ANÁLISIS DE PATRONES")
-        print("-"*30)
-        print("Autocorrelaciones promedio por posición:")
+        # Pattern analysis
+        title = "4. PATTERN ANALYSIS" if self.language == 'en' else "4. ANÁLISIS DE PATRONES"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
+        print_and_save("Average autocorrelations by position:" if self.language == 'en' else "Autocorrelaciones promedio por posición:")
         avg_autocorr = np.zeros(10)
         for pos in range(len(self.test_seed)):
             avg_autocorr += np.array(analysis['position_stats'][pos]['autocorrelation'])
         avg_autocorr /= len(self.test_seed)
         for lag, corr in enumerate(avg_autocorr, 1):
-            print(f"Lag-{lag}: {corr:.4f}")
+            print_and_save(f"Lag-{lag}: {corr:.4f}")
 
-        # Palabras más y menos frecuentes globales
-        print("\n5. DISTRIBUCIÓN DE PALABRAS")
-        print("-"*30)
-        print("Palabras más frecuentes:")
+        # Word distribution
+        title = "5. WORD DISTRIBUTION" if self.language == 'en' else "5. DISTRIBUCIÓN DE PALABRAS"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
+        print_and_save("Most frequent words:" if self.language == 'en' else "Palabras más frecuentes:")
         for word, count in analysis['global_stats']['most_common'][:10]:
-            print(f"- '{word}': {count} veces")
-        print("\nPalabras menos frecuentes:")
+            print_and_save(f"- '{word}': {count} times")
+        print_and_save("\nLeast frequent words:" if self.language == 'en' else "\nPalabras menos frecuentes:")
         least_common = sorted(analysis['global_stats']['most_common'], key=lambda x: x[1])[:10]
         for word, count in least_common:
-            print(f"- '{word}': {count} veces")
+            print_and_save(f"- '{word}': {count} times")
 
-        # Tiempo de ejecución
-        if 'execution_stats' in analysis:
-            print("\n6. ESTADÍSTICAS DE EJECUCIÓN")
-            print("-"*30)
-            print(f"Tiempo total de ejecución: {analysis['execution_stats']['total_time']:.2f} segundos")
-            print(f"Timestamp: {analysis['execution_stats']['timestamp']}")
+        # Execution statistics
+        title = "6. EXECUTION STATISTICS" if self.language == 'en' else "6. ESTADÍSTICAS DE EJECUCIÓN"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
+        print_and_save(f"Total execution time: {analysis['execution_stats']['total_time']:.2f} seconds" if self.language == 'en' else
+                      f"Tiempo total de ejecución: {analysis['execution_stats']['total_time']:.2f} segundos")
+        print_and_save(f"Timestamp: {analysis['execution_stats']['timestamp']}")
 
-        # Información de archivos generados
-        print("\n7. ARCHIVOS GENERADOS")
-        print("-"*30)
-        print(f"Directorio de resultados: {self.results_dir}")
-        print(f"Gráficos guardados en: {self.plots_dir}")
-        print(f"Archivo de análisis: analysis_{timestamp}.json")
+        # Generated files
+        title = "7. GENERATED FILES" if self.language == 'en' else "7. ARCHIVOS GENERADOS"
+        print_and_save(f"\n{title}")
+        print_and_save("-"*30)
+        print_and_save(f"Results directory: {self.results_dir}")
+        print_and_save(f"Plots saved in: {self.plots_dir}")
+        print_and_save(f"Analysis file: analysis_{timestamp}.json")
+        print_and_save(f"Terminal output: terminal_output_{timestamp}.txt")
+
+        # Save terminal output
+        output_file = os.path.join(self.results_dir, f"terminal_output_{timestamp}.txt")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(output_lines))
 
     def analyze(self) -> Dict:
         """
-        Realiza el análisis completo y devuelve los resultados.
-
-        Returns:
-            Dict: Resultados del análisis
+        Perform complete analysis and return results.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         start_time = time.time()
+        terminal_output = []  # Para guardar la salida de la terminal
 
-        print(f"\nIniciando análisis con {self.n_tests} pruebas...")
+        print(self.texts['start_analysis'].format(self.n_tests))
+        terminal_output.append(self.texts['start_analysis'].format(self.n_tests))
 
-        # Generar contraseñas y ejecutar pruebas
+        # Generate passwords and run tests
         passwords = self.generate_passwords()
-        with mp.Pool() as pool:
+        with mp.Pool(processes=self.resource_config['processes']) as pool:
             results = list(tqdm(
                 pool.imap(self.run_cipher, passwords),
                 total=self.n_tests,
-                desc="Procesando cifrados"
+                desc=self.texts['processing']
             ))
 
-        # Filtrar resultados válidos
+        # Filter valid results
         valid_results = [(password, result)
                         for password, result in zip(passwords, results)
                         if result is not None]
 
         if not valid_results:
-            raise ValueError("No se obtuvieron resultados válidos")
+            raise ValueError("No valid results obtained")
 
         passwords_valid, results_valid = zip(*valid_results)
 
-        print(f"\nAnalizando {len(results_valid)} resultados exitosos...")
+        print(self.texts['analyzing'].format(len(results_valid)))
+        terminal_output.append(self.texts['analyzing'].format(len(results_valid)))
 
-        # Análisis principal
+        # Main analysis
         analysis = self.analyze_distribution(results_valid)
 
-        # Pruebas de reversibilidad
-        print("\nProbando reversibilidad...")
+        # Reversibility tests
+        print(self.texts['testing_rev'])
+        terminal_output.append(self.texts['testing_rev'])
         reversibility_results = []
-        test_pairs = list(zip(passwords_valid[:100], results_valid[:100]))
+        test_pairs = list(zip(passwords_valid[:self.rev_tests], results_valid[:self.rev_tests]))
 
-        for password, result in tqdm(test_pairs, desc="Verificando reversibilidad"):
+        for password, result in tqdm(test_pairs, desc=self.texts['verifying']):
             rev_test = self.test_reversibility(result, password)
             reversibility_results.append(rev_test)
 
-        # Estadísticas de reversibilidad
+        # Reversibility statistics
         reversibility_stats = {
             "total_tests": len(reversibility_results),
             "successful_reversals": sum(1 for r in reversibility_results if r["success"] and r["is_reversible"]),
@@ -483,54 +582,69 @@ class EnhancedAnalyzer:
 
         analysis["reversibility_analysis"] = reversibility_stats
 
-        # Generar visualizaciones
+        # Generate visualizations
         self.generate_plots(analysis, timestamp)
 
-        # Guardar resultados
+        # Save results
         results_file = os.path.join(self.results_dir, f"analysis_{timestamp}.json")
         with open(results_file, 'w') as f:
             json.dump(analysis, f, indent=2, default=str)
 
-        # Calcular tiempo total
+        # Calculate total time
         total_time = time.time() - start_time
         analysis['execution_stats'] = {
             'total_time': total_time,
             'timestamp': timestamp
         }
 
-        # Mostrar resultados detallados
-        self.print_detailed_results(analysis, timestamp)
+        # Show detailed results
+        self.print_detailed_results(analysis, timestamp, terminal_output)
+
+        print(self.texts['completed'].format(self.results_dir))
+        terminal_output.append(self.texts['completed'].format(self.results_dir))
 
         return analysis
 
-
 def main():
     """
-    Función principal que procesa los argumentos de línea de comandos y ejecuta el análisis.
+    Main function to handle command line arguments and execute analysis.
     """
-    parser = argparse.ArgumentParser(description='Analizador mejorado de cifrado')
-    parser.add_argument('--script', default='./scypher.sh',
-                      help='Ruta al script de cifrado (default: ./scypher.sh)')
-    parser.add_argument('--tests', type=int, default=10000,
-                      help='Número de pruebas a realizar (default: 10000)')
-    parser.add_argument('--debug', action='store_true',
-                      help='Activa el modo debug')
+    parser = argparse.ArgumentParser(description='Enhanced Cipher Analyzer')
+    parser.add_argument('--script', '-s', default='./scypher.sh',
+                      help='Path to cipher script (default: ./scypher.sh)')
+    parser.add_argument('--tests', '-t', type=int, default=10000,
+                      help='Number of tests to perform (default: 10000)')
+    parser.add_argument('--debug', '-d', action='store_true',
+                      help='Enable debug mode')
+    parser.add_argument('--password-mode', '-p', choices=['random', 'similar'], default='random',
+                      help='Password generation mode (default: random)')
+    parser.add_argument('--resource-level', '-r', type=int, choices=[1, 2, 3], default=3,
+                      help='Resource usage level - 1:low, 2:medium, 3:high (default: 2)')
+    parser.add_argument('--language', '-l', choices=['en', 'es'], default='en',
+                      help='Interface language (default: en)')
+    parser.add_argument('--rev-tests', '-rv', type=int, default=100,
+                      help='Number of reversibility tests to perform (default: 100)')
 
     args = parser.parse_args()
 
     analyzer = EnhancedAnalyzer(
         bash_script_path=args.script,
         n_tests=args.tests,
-        debug=args.debug
+        debug=args.debug,
+        password_mode=args.password_mode,
+        resource_level=args.resource_level,
+        language=args.language,
+        rev_tests=args.rev_tests
     )
 
     try:
         results = analyzer.analyze()
-        print(f"\nAnálisis completado. Resultados guardados en: {analyzer.results_dir}")
     except Exception as e:
-        print(f"Error durante el análisis: {str(e)}")
+        print(f"Error during analysis: {str(e)}")
         if args.debug:
             raise
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
