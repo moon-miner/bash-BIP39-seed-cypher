@@ -229,7 +229,7 @@ python script_analyzer.py -t 1000 -l es -sp "word1 word2 word3 word4"
 python script_analyzer.py -r 2 -t 5000
 ```
 
-Note: When using `-sp` (seed phrase), ensure all words are valid BIP39 words.
+Note: When using `-sp` (seed phrase), ensure all words are valid BIP39 words and standard lenght 12, 15, 18, 21 and 24 words.
 
 ### Analyzer Output
 The analyzer creates:
