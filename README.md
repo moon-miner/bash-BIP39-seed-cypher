@@ -225,8 +225,8 @@ Example with multiple options:
 # Run 1000 tests with Spanish interface and custom seed phrase
 python script_analyzer.py -t 1000 -l es -sp "word1 word2 word3 word4"
 
-# Run analysis with default seed phrase and high resources
-python script_analyzer.py -r 3 -t 5000
+# Run analysis with default seed phrase and mid resources
+python script_analyzer.py -r 2 -t 5000
 ```
 
 Note: When using `-sp` (seed phrase), ensure all words are valid BIP39 words.
