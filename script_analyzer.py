@@ -27,7 +27,9 @@ TRANSLATIONS = {
         'analyzing': "\nAnalyzing {} successful results...",
         'testing_rev': "\nTesting reversibility...",
         'verifying': "Verifying reversibility",
-        'completed': "\nAnalysis completed. Results saved in: {}"
+        'completed': "\nAnalysis completed. Results saved in: {}",
+        'seed_phrase_used': "Seed phrase used for analysis",
+        'words': "words"
     },
     'es': {
         'start_analysis': "Iniciando análisis con {} pruebas...",
@@ -35,7 +37,9 @@ TRANSLATIONS = {
         'analyzing': "\nAnalizando {} resultados exitosos...",
         'testing_rev': "\nProbando reversibilidad...",
         'verifying': "Verificando reversibilidad",
-        'completed': "\nAnálisis completado. Resultados guardados en: {}"
+        'completed': "\nAnálisis completado. Resultados guardados en: {}",
+        'seed_phrase_used': "Frase semilla utilizada para el análisis",
+        'words': "palabras"
     }
 }
 
@@ -43,7 +47,7 @@ TRANSLATIONS = {
 class EnhancedAnalyzer:
     def __init__(self, bash_script_path: str, n_tests: int = 10000, debug: bool = False,
                  password_mode: str = 'random', resource_level: int = 3,
-                 language: str = 'en', rev_tests: int = 100):
+                 language: str = 'en', rev_tests: int = 100, seed_phrase: Optional[str] = None):
         """
         Initialize the analyzer with custom parameters.
         """
@@ -77,13 +81,18 @@ class EnhancedAnalyzer:
         self.resource_config = self.resource_configs[resource_level]
         self.texts = TRANSLATIONS[language]
 
-        self.test_seed = [
+        self.default_seed = [
             "ribbon", "slight", "frog", "oxygen", "range",
             "slam", "destroy", "dune", "fossil", "slow",
             "decrease", "primary", "hint", "loan", "limb",
             "palm", "act", "reward", "foot", "deposit",
             "response", "fashion", "under", "sail"
         ]
+
+        if seed_phrase:
+            self.test_seed = seed_phrase.split()
+        else:
+            self.test_seed = self.default_seed.copy()
 
         # Setup directories
         self.results_dir = "analysis_results"
@@ -405,6 +414,10 @@ class EnhancedAnalyzer:
         print_and_save("\n" + "="*50)
         print_and_save("CONFIGURATION SUMMARY" if self.language == 'en' else "RESUMEN DE CONFIGURACIÓN")
         print_and_save("="*50)
+        print_and_save(f"\n{self.texts['seed_phrase_used']}:")
+        print_and_save(f"- {' '.join(self.test_seed)}")
+        print_and_save(f"- {self.texts['words'] if self.language == 'en' else 'palabras'}: {len(self.test_seed)}")
+        print_and_save("")
         print_and_save(f"\nPassword Mode: {self.password_mode}")
         print_and_save(f"Resource Level: {list(self.resource_configs.keys())[list(self.resource_configs.values()).index(self.resource_config)]}")
         print_and_save(f"Number of Tests: {self.n_tests}")
@@ -464,7 +477,7 @@ class EnhancedAnalyzer:
         print_and_save("-"*30)
         for pos in range(len(self.test_seed)):
             stats = analysis['position_stats'][pos]
-            print_and_save(f"\nPosition {pos}:")
+            print_and_save(f"\nPosition {pos + 1}:")
             print_and_save(f"- Entropy: {stats['entropy']:.4f} bits")
             print_and_save(f"- P-value: {stats['p_value']:.4f}")
             print_and_save(f"- Chi-square: {stats['chi_square']:.4f}")
@@ -624,6 +637,8 @@ def main():
                       help='Interface language (default: en)')
     parser.add_argument('--rev-tests', '-rv', type=int, default=100,
                       help='Number of reversibility tests to perform (default: 100)')
+    parser.add_argument('--seed-phrase', '-sp', type=str,
+                      help='Custom seed phrase to use for testing (space-separated words)')
 
     args = parser.parse_args()
 
@@ -634,7 +649,8 @@ def main():
         password_mode=args.password_mode,
         resource_level=args.resource_level,
         language=args.language,
-        rev_tests=args.rev_tests
+        rev_tests=args.rev_tests,
+        seed_phrase=args.seed_phrase
     )
 
     try:
