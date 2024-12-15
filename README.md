@@ -2,39 +2,39 @@
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
 
 ## 📋 Table of Contents
-- [Project Description](#project-description)
-- [Installation](#installation)
-  - [Method 1: Blockchain Installation](#method-1-blockchain-installation-recommended)
-  - [Method 2: Traditional Installation](#method-2-traditional-installation)
-- [Usage](#usage)
-  - [Requirements](#requirements)
-  - [Examples](#examples)
-  - [Interactive Flow](#interactive-flow)
-- [Security](#security)
-  - [Security Features](#security-features)
-  - [Security Strengths](#security-strengths)
-  - [Security Analysis](#security-analysis)
-  - [Security Considerations](#security-considerations)
-- [Technical Details](#technical-details)
-  - [Implementation Notes](#implementation-notes)
-  - [Performance](#performance)
-  - [Script Analyzer](#script-analyzer)
-    - [Analyzer Requirements](#analyzer-requirements)
-    - [Analyzer Installation](#analyzer-installation)
-    - [Analyzer Usage](#analyzer-usage)
-    - [Analyzer Output](#analyzer-output)
-    - [Analysis Features](#analysis-features)
-- [Legal](#legal)
-  - [License](#license)
-  - [Disclaimer](#disclaimer)
-- [Contributing](#contributing)
+- Project Description
+- Installation
+  - Method 1: Blockchain Installation
+  - Method 2: Traditional Installation
+- Usage
+  - Requirements
+  - Examples
+  - Interactive Flow
+- Security
+  - Security Features
+  - Security Strengths
+  - Security Analysis
+  - Security Considerations
+- Technical Details
+  - Implementation Notes
+  - Performance
+  - Script Analyzer
+    - Analyzer Requirements
+    - Analyzer Installation
+    - Analyzer Usage
+    - Analyzer Output
+    - Analysis Features
+- Legal
+  - License
+  - Disclaimer
+- Contributing
 
 ## 📝 Project Description
 This script provides a secure way to transform BIP39 seed phrases into alternative valid BIP39 phrases and back, using password-based encryption. It maintains the original security properties of BIP39 while adding an extra layer of protection through reversible transformation.
 
 The transformation is:
 - Completely reversible
-- Password-dependent 
+- Password-dependent
 - Statistically uniform
 - Maintaining BIP39 format
 
@@ -70,15 +70,16 @@ The downloader ensures you always get the authentic, unmodified version of the s
 
 ### Method 2: Traditional Installation
 If you prefer the traditional method:
+
 1. Clone the repository
 2. Make the script executable:
-   ```bash
-   chmod +x scypher.sh
-   ```
+```bash
+chmod +x scypher.sh
+```
 3. Verify the script works:
-   ```bash
-   ./scypher.sh --help
-   ```
+```bash
+./scypher.sh --help
+```
 
 ## 💻 Usage
 
@@ -140,17 +141,17 @@ If you prefer the traditional method:
 ### Security Analysis
 Extensive testing using our Python Script Analyzer tool has shown:
 
-#### Distribution Analysis
+Distribution Analysis:
 - Uniform distribution across all word positions (Chi-square p-values > 0.05)
 - No significant word frequency bias (max frequency ~1.5% in 10,000 tests)
 - High entropy maintained across all positions
 
-#### Reversibility Testing
+Reversibility Testing:
 - 100% success rate in reversibility tests
 - Perfect reconstruction of original seed phrases
 - No data loss or corruption in transformation process
 
-#### Test Results Summary
+Test Results Summary:
 - Total tests: 10,000
 - Success rate: 100%
 - Reversibility: 100%
@@ -178,10 +179,10 @@ While this tool has been thoroughly tested and analyzed, users should:
 - Constant memory usage
 - No disk I/O beyond initial loading
 
-### Script Analyzer
+## Script Analyzer
 A Python-based analysis tool is included to verify the statistical properties and security characteristics of the cipher implementation.
 
-#### Analyzer Requirements
+### Analyzer Requirements
 - Python 3.8 or higher
 - Required Python packages:
   - numpy
@@ -192,19 +193,22 @@ A Python-based analysis tool is included to verify the statistical properties an
   - seaborn
   - psutil
 
-#### Analyzer Installation
+### Analyzer Installation
 Install the required packages using pip:
+
 ```bash
 pip install numpy pandas scipy tqdm matplotlib seaborn psutil
 ```
 
-#### Analyzer Usage
+### Analyzer Usage
 Basic usage with default settings:
+
 ```bash
 python script_analyzer.py                  # Run with defaults (English UI, random passwords, high resources)
 ```
 
 Available options:
+
 ```bash
 python script_analyzer.py -h               # Show help message with examples
 python script_analyzer.py -r 1             # Resource usage (1=low, 2=med, 3=high)
@@ -212,16 +216,29 @@ python script_analyzer.py -p random        # Password mode (random/similar)
 python script_analyzer.py -l en            # Language (en/es)
 python script_analyzer.py -t 1000          # Number of tests
 python script_analyzer.py -rv 500          # Number of reversibility tests
+python script_analyzer.py -sp "word1 ..."  # Custom seed phrase for testing
 ```
 
-#### Analyzer Output
+Example with multiple options:
+
+```bash
+# Run 1000 tests with Spanish interface and custom seed phrase
+python script_analyzer.py -t 1000 -l es -sp "word1 word2 word3 word4"
+
+# Run analysis with default seed phrase and high resources
+python script_analyzer.py -r 3 -t 5000
+```
+
+Note: When using `-sp` (seed phrase), ensure all words are valid BIP39 words.
+
+### Analyzer Output
 The analyzer creates:
 - JSON files with detailed analysis results in analysis_results/
 - Statistical plots in analysis_results/plots/
 - Console output with key metrics and findings
 - Detailed terminal output saved to file
 
-#### Analysis Features
+### Analysis Features
 - Distribution analysis across word positions
 - Chi-square tests for uniformity
 - Entropy calculations
@@ -232,6 +249,9 @@ The analyzer creates:
 - Resource usage optimization
 - Support for large-scale tests (10M+)
 - Bilingual interface (English/Spanish)
+- Custom seed phrase testing capabilities
+- Position-based analysis (numbered 1-24)
+- Detailed seed phrase information in reports
 
 ## 📜 Legal
 
