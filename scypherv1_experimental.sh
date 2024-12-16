@@ -1,7 +1,12 @@
 #!/bin/bash
 
-# SCypher - Enhanced BIP39 Seed Cipher v1.0
-# A tool to encode/decode BIP39 seed phrases using Perfect Shuffle algorithm
+# SCypher - Bash-based BIP39 Seed Cipher v1.0
+# A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
+# and Perfect Shuffle algorithms
+#
+# Resources:
+# - BIP39 Standard by M. Palatinus & P. Rusnak
+# - Developed with AI assistance (ChatGPT/Claude)
 #
 # System Requirements:
 # - Bash 4.0 or higher (for associative arrays)
@@ -2487,8 +2492,14 @@ show_usage() {
     script_name=$(basename "$0")
 
     cat << EOF
-SCypher v${VERSION} - Enhanced BIP39 Seed Cipher
-A tool to encode/decode BIP39 seed phrases using Perfect Shuffle algorithm
+
+SCypher v${VERSION} - Bash-based BIP39 Seed Cipher
+A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
+and Perfect Shuffle algorithms
+
+Resources:
+- BIP39 Standard by M. Palatinus & P. Rusnak
+- Developed with AI assistance (ChatGPT/Claude)
 
 ⚠️  IMPORTANT: Please read the license and disclaimer before use (--license)
 
@@ -2509,7 +2520,7 @@ Examples:
     ${script_name} --details              # Learn how the cipher works
     ${script_name} -s < input.txt         # Process input file in silent mode
 
-Dependencies:$COMPATIBILITY_INFO
+$COMPATIBILITY_INFO
 
 EOF
 
