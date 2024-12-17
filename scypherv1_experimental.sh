@@ -2278,7 +2278,7 @@ generate_seed_from_password() {
     local password="$1"
     local hash
     hash=$(printf "%s" "$password" | sha256sum | cut -d' ' -f1)
-    printf "%d" "0x${hash:0:8}"
+    printf "%d" "0x${hash:0:12}"
 }
 
 # Enhanced Fisher-Yates shuffle
@@ -2291,7 +2291,7 @@ fisher_yates_shuffle() {
 
     for ((i = size - 1; i > 0; i--)); do
         j=$(( (seed + i) % (i + 1) ))
-        seed=$(( (seed * 1103515245 + 12345) % 2147483648 ))
+
 
         if [[ $i -lt $size && $j -lt $size && -n "${arr[i]}" && -n "${arr[j]}" ]]; then
             temp="${arr[i]}"
@@ -2366,7 +2366,7 @@ generate_next_seed() {
     local seed="$1"
     local hash
     hash=$(printf "%s" "$seed" | sha256sum | cut -d' ' -f1)
-    printf "%d" "0x${hash:0:8}"
+    printf "%d" "0x${hash:0:12}"
 }
 
 # Mix words function
