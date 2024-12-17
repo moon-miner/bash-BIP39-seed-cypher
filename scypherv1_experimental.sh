@@ -2361,6 +2361,14 @@ perfect_shuffle() {
     printf "%s\n" "${mixed_words[@]}"
 }
 
+# Generate nex seed from previous using sha-256
+generate_next_seed() {
+    local seed="$1"
+    local hash
+    hash=$(printf "%s" "$seed" | sha256sum | cut -d' ' -f1)
+    printf "%d" "0x${hash:0:8}"
+}
+
 # Mix words function
 mix_words() {
     local password="$1"
@@ -2376,7 +2384,7 @@ mix_words() {
         # Do Fisher-Yates shuffle with current seed
         mapfile -t mixed_words < <(fisher_yates_shuffle "$seed" "${mixed_words[@]}")
         # Generate next seed from current one
-        seed=$(( (seed * 1103515245 + 12345) % 2147483648 ))
+        seed=$(generate_next_seed "$seed")
     done
 
     # Return the mixed words
