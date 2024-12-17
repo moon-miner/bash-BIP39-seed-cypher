@@ -2,7 +2,6 @@
 
 # SCypher - Bash-based BIP39 Seed Cipher v1.0
 # A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
-# and Perfect Shuffle algorithms
 #
 # Resources:
 # - BIP39 Standard by M. Palatinus & P. Rusnak
@@ -2642,7 +2641,6 @@ show_usage() {
 
 SCypher v${VERSION} - Bash-based BIP39 Seed Cipher
 A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
-and Perfect Shuffle algorithms
 
 Resources:
 - BIP39 Standard by M. Palatinus & P. Rusnak
