@@ -2445,64 +2445,6 @@ fisher_yates_shuffle() {
     printf "%s\n" "${arr[@]}"
 }
 
-# Transform segments function
-transform_segments() {
-    local -i seed="$1"
-    local -a arr=("${@:2}")
-    local -i size=${#arr[@]}
-    local -i segment_size=$(( size / 4 ))
-    local -i offset
-    local temp
-
-    for ((segment = 0; segment < 4; segment++)); do
-        offset=$((segment * segment_size))
-
-        for ((i = 0; i < segment_size / 2; i++)); do
-            local pos1=$((offset + i))
-            local pos2=$((offset + segment_size - 1 - i))
-
-            if [[ $pos1 -lt $size && $pos2 -lt $size && -n "${arr[pos1]}" && -n "${arr[pos2]}" ]]; then
-                seed=$(( (seed * 1103515245 + 12345) % 2147483648 ))
-                if (( seed % 2 )); then
-                    temp="${arr[pos1]}"
-                    arr[pos1]="${arr[pos2]}"
-                    arr[pos2]="$temp"
-                fi
-            fi
-        done
-    done
-
-    printf "%s\n" "${arr[@]}"
-}
-
-# Perfect Shuffle function
-perfect_shuffle() {
-    local password="$1"
-    declare -a mixed_words
-    mixed_words=("${WORDS[@]}")
-    local -i seed1 seed2
-
-    seed1=$(generate_seed_from_password "$password")
-    mapfile -t mixed_words < <(fisher_yates_shuffle "$seed1" "${mixed_words[@]}")
-
-    if [[ ${#mixed_words[@]} -ne ${#WORDS[@]} ]]; then
-        echo "Error: Word count mismatch after shuffle" >&2
-        exit "${EXIT_ERROR}"
-    fi
-
-    seed2=$(( (seed1 * 1103515245 + 12345) % 2147483648 ))
-    mapfile -t mixed_words < <(transform_segments "$seed2" "${mixed_words[@]}")
-
-    seed2=$(( (seed2 * 1103515245 + 12345) % 2147483648 ))
-    mapfile -t mixed_words < <(fisher_yates_shuffle "$seed2" "${mixed_words[@]}")
-
-    if [[ ${#mixed_words[@]} -ne ${#WORDS[@]} ]]; then
-        echo "Error: Final word count mismatch" >&2
-        exit "${EXIT_ERROR}"
-    fi
-
-    printf "%s\n" "${mixed_words[@]}"
-}
 
 # Generate nex seed from previous using sha-256
 generate_next_seed() {
@@ -2535,8 +2477,8 @@ mix_words() {
     printf "%s\n" "${mixed_words[@]}"
 }
 
-# Process words function
-process_words() {
+# Function to create deterministic word pairs and transform input using them
+create_pairs() {
     local password="$1"
     local iterations="$2"
     shift 2
@@ -2877,7 +2819,7 @@ main() {
     # Process words and get result
     log $LOG_INFO "Processing input with $iterations iteration(s)"
     local result
-    result=$(process_words "$password" "$iterations" "${input_words[@]}")
+    result=$(create_pairs "$password" "$iterations" "${input_words[@]}")
     log $LOG_DEBUG "Word processing completed"
 
     # Output results
