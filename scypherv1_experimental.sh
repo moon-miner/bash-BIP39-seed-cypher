@@ -2585,6 +2585,12 @@ cleanup() {
         "mapping"              # Word pair mapping table
         "seed"                 # Password-derived seed
         "hash"                 # Temporary hash used in process
+        "iterations"           # Number of encryption iterations
+        "word1"               # First word in pair mapping
+        "word2"               # Second word in pair mapping
+        "mapped_word"         # Result of word mapping
+        "temp"                # Temporary variable used in shuffle
+        "answer"              # User input for file overwrite
     )
 
     # Clean each sensitive variable
@@ -2600,9 +2606,19 @@ cleanup() {
         done
     fi
 
+    # Clean mapping array if it exists
+    if declare -p mapping >/dev/null 2>&1; then
+        for key in "${!mapping[@]}"; do
+            mapping[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
+            unset 'mapping[$key]'
+        done
+    fi
+
     # Clean temporary variables
     unset password password_confirm input result hash seed
     unset mixed_words mapping word_lookup invalid_words
+    unset iterations word1 word2 mapped_word temp answer
+    unset i j half_size size
 
     # Clean command history
     clear_history
