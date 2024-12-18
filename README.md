@@ -1,4 +1,4 @@
-# Bash BIP39 Seed Cipher (currently beta)
+# Bash BIP39 Seed Cipher (Currently in beta demonstration)
 A secure and efficient tool for encoding and decoding BIP39 seed phrases while maintaining the BIP39 word format.
 
 ## 📋 Table of Contents
@@ -38,7 +38,7 @@ The transformation is:
 - Statistically uniform
 - Maintaining BIP39 format
 
-## 🔥 Installation Methods (BETA VERSION)
+## 🔥 Installation Methods (BETA DEMONSTRATION VERSION)
 
 ### Method 1: Blockchain Installation (Recommended)
 The main script scypher.sh is stored securely on the blockchain, ensuring it will never be lost. To install:
