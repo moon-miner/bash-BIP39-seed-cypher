@@ -1,3 +1,4 @@
+ 
 #!/bin/bash
 
 # SCypher - Bash-based BIP39 Seed Cipher v1.0
@@ -30,30 +31,6 @@ readonly EXTENSION=".txt"
 readonly MIN_BASH_VERSION=4
 readonly MIN_PASSWORD_LENGTH=1
 readonly VALID_WORD_COUNTS=(12 15 18 21 24)
-
-# Sistema de logging
-declare -r LOG_FILE="/var/log/scypher.log"
-declare -r LOG_ERROR=0
-declare -r LOG_WARN=1
-declare -r LOG_INFO=2
-declare -r LOG_DEBUG=3
-
-log() {
-    local level="$1"
-    local message="$2"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-
-    # Solo logear si tenemos permisos
-    if [[ -w "$(dirname "$LOG_FILE")" ]]; then
-        case $level in
-            $LOG_ERROR) echo "[$timestamp] ERROR: $message" >> "$LOG_FILE" ;;
-            $LOG_WARN)  echo "[$timestamp] WARN:  $message" >> "$LOG_FILE" ;;
-            $LOG_INFO)  echo "[$timestamp] INFO:  $message" >> "$LOG_FILE" ;;
-            $LOG_DEBUG) [[ "${DEBUG:-}" == "1" ]] && echo "[$timestamp] DEBUG: $message" >> "$LOG_FILE" ;;
-        esac
-    fi
-}
 
 # License and Disclaimer text
 readonly LICENSE_TEXT="
@@ -2193,27 +2170,23 @@ check_system_compatibility() {
     case "$os_name" in
         Linux)
             if ! available_memory=$(free -m | awk '/^Mem:/{print $7}'); then
-                log $LOG_WARN "Could not determine available memory"
                 echo "Warning: Could not determine available memory" >&2
                 available_memory=0
             fi
             ;;
         Darwin)
             if ! available_memory=$(vm_stat | awk '/free/ {gsub(/\./, "", $3); print int($3)*4096/1024/1024}'); then
-                log $LOG_WARN "Could not determine available memory"
                 echo "Warning: Could not determine available memory" >&2
                 available_memory=0
             fi
             ;;
         *)
-            log $LOG_WARN "Could not determine available memory on $os_name"
             echo "Warning: Could not determine available memory on $os_name" >&2
             available_memory=0
             ;;
     esac
 
     if [[ $available_memory -lt 100 ]]; then
-        log $LOG_WARN "Less than 100MB of available memory"
         echo "Warning: System has low available memory (${available_memory}MB)" >&2
     fi
 
@@ -2221,7 +2194,6 @@ check_system_compatibility() {
     case "$os_name" in
         Linux)
             if ! command -v sha256sum >/dev/null 2>&1; then
-                log $LOG_ERROR "sha256sum not found"
                 echo "Error: sha256sum not found. Please install GNU coreutils." >&2
                 exit "${EXIT_ERROR}"
             fi
@@ -2231,7 +2203,6 @@ check_system_compatibility() {
                 if command -v gsha256sum >/dev/null 2>&1; then
                     sha256sum() { gsha256sum "$@"; }
                 else
-                    log $LOG_ERROR "sha256sum not found on macOS"
                     echo "Error: sha256sum not found. Please install coreutils via Homebrew:" >&2
                     echo "brew install coreutils" >&2
                     exit "${EXIT_ERROR}"
@@ -2240,35 +2211,29 @@ check_system_compatibility() {
             ;;
         MINGW*|CYGWIN*|MSYS*)
             if ! command -v sha256sum >/dev/null 2>&1; then
-                log $LOG_ERROR "sha256sum not found on Windows"
                 echo "Error: sha256sum not found. Please install GNU coreutils for Windows." >&2
                 exit "${EXIT_ERROR}"
             fi
             if [[ "$(printf '\r')" == $'\r' ]]; then
-                log $LOG_WARN "Windows line endings detected"
                 echo "Warning: Windows line endings detected. This may cause issues." >&2
             fi
             ;;
         *)
-            log $LOG_WARN "Untested operating system: $os_name"
             echo "Warning: Untested operating system ($os_name). Proceed with caution." >&2
             ;;
     esac
 
     if ! locale charmap >/dev/null 2>&1; then
-        log $LOG_WARN "Could not determine system locale"
         echo "Warning: Could not determine system locale" >&2
     elif [[ $(locale charmap) != "UTF-8" ]]; then
-        log $LOG_WARN "Non-UTF-8 locale detected"
         echo "Warning: Non-UTF-8 locale detected" >&2
     fi
 
     return 0  # Asegurar que la función siempre retorne éxito si no hubo errores fatales
 }
 
-# Configuración de traps para manejo de señales
-trap 'exit 1' SIGINT SIGTERM
-trap 'cleanup' EXIT HUP PIPE
+# Signal handling configuration
+trap 'cleanup' EXIT HUP PIPE INT TERM
 
 # Function to show license and disclaimer
 show_license() {
@@ -2329,12 +2294,12 @@ validate_bip39_words() {
     declare -A word_lookup invalid_words
     local word count=0
 
-    # Crear hash table para búsqueda O(1)
+    # Create hash table for O(1) lookup
     for word in "${WORDS[@]}"; do
         word_lookup["$word"]=1
     done
 
-    # Verificar cada palabra y almacenar las inválidas
+    # Check each word and store invalid ones
     for word in "${words[@]}"; do
         if [[ -z "${word_lookup[$word]:-}" ]]; then
             invalid_words["$word"]=1
@@ -2342,15 +2307,29 @@ validate_bip39_words() {
         fi
     done
 
-    # Si hay palabras inválidas, mostrarlas todas
+    # If invalid words found, show them all
     if ((count > 0)); then
         echo "Invalid BIP39 words found:" >&2
         for word in "${!invalid_words[@]}"; do
             echo "  - $word" >&2
         done
+        echo -e "\nPlease verify that you have typed the words correctly. You can find the complete BIP39 word list in the script by opening it with a text editor." >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and continue..."
+
+        # Clean sensitive data before clearing screen
+        for word in "${!invalid_words[@]}"; do
+            invalid_words[$word]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
+            unset 'invalid_words[$word]'
+        done
+        unset word_lookup word count
+
+        clear_screen
         return 1
     fi
 
+    # Clean lookup table even on success
+    unset word_lookup
     return 0
 }
 
@@ -2359,14 +2338,12 @@ validate_input() {
 
     # Verificar caracteres no permitidos
     if [[ "$input" =~ [^a-zA-Z0-9\ ] ]]; then
-        log $LOG_ERROR "Invalid characters in input"
         echo "Error: Input contains invalid characters" >&2
         return 1
     fi
 
     # Verificar longitud máxima
     if [[ ${#input} -gt 1024 ]]; then
-        log $LOG_ERROR "Input exceeds maximum length"
         echo "Error: Input too long" >&2
         return 1
     fi
@@ -2483,11 +2460,6 @@ create_pairs() {
     shift 2
     local -a input_words=("$@")
 
-    if [[ "${DEBUG:-}" == "1" ]]; then
-        echo "Processing words: ${input_words[*]}" >&2
-        echo "Number of words to process: ${#input_words[@]}" >&2
-    fi
-
     local -a mixed_words
     mapfile -t mixed_words < <(mix_words "$password" "$iterations")
     local -i half_size=$(( ${#mixed_words[@]} / 2 ))
@@ -2516,25 +2488,14 @@ create_pairs() {
         mapping["$word1"]="$word2"
         mapping["$word2"]="$word1"
 
-        if [[ "${DEBUG:-}" == "1" ]]; then
-            echo "Mapping: $word1 <-> $word2" >&2
-        fi
     done
 
     local output=""
     for word in "${input_words[@]}"; do
         word=$(echo "$word" | tr -d '[:space:]')
 
-        if [[ "${DEBUG:-}" == "1" ]]; then
-            echo "Processing word: '$word'" >&2
-        fi
-
         if [[ -n "${mapping[$word]+x}" ]]; then
             local mapped_word="${mapping[$word]}"
-
-            if [[ "${DEBUG:-}" == "1" ]]; then
-                echo "Input: $word -> Output: $mapped_word" >&2
-            fi
 
             if [[ -z "$mapped_word" || "$mapped_word" =~ [[:space:]] ]]; then
                 echo "Error: Invalid mapping result for '$word'" >&2
@@ -2548,10 +2509,6 @@ create_pairs() {
             exit "${EXIT_ERROR}"
         fi
     done
-
-    if [[ "${DEBUG:-}" == "1" ]]; then
-        echo "Final output: '$output'" >&2
-    fi
 
     echo "$output"
 }
@@ -2607,29 +2564,60 @@ cleanup() {
     local -r mask=$(umask)
     umask 077
 
-    log $LOG_INFO "Starting cleanup process"
+    # Helper function to securely erase data by overwriting with random data
+    secure_erase() {
+        local var_name=$1
+        if [[ -n "${!var_name:-}" ]]; then
+            # Overwrite with random data first
+            eval "$var_name=\"\$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)\""
+            # Then clear
+            eval "$var_name=''"
+        fi
+    }
 
-    # Limpiar variables sensibles
-    if [[ -n "${PASSWORD:-}" ]]; then
-        log $LOG_DEBUG "Cleaning sensitive data"
-        PASSWORD="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
-        PASSWORD=""
+    # List of sensitive variables to clean
+    local sensitive_vars=(
+        "PASSWORD"              # User password
+        "input"                 # Input seed phrase
+        "input_words"          # Seed phrase word array
+        "result"               # Operation result
+        "mixed_words"          # Shuffled word list
+        "mapping"              # Word pair mapping table
+        "seed"                 # Password-derived seed
+        "hash"                 # Temporary hash used in process
+    )
+
+    # Clean each sensitive variable
+    for var in "${sensitive_vars[@]}"; do
+        secure_erase "$var"
+    done
+
+    # Clean associative arrays if they exist
+    if declare -p word_lookup >/dev/null 2>&1; then
+        for key in "${!word_lookup[@]}"; do
+            word_lookup[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
+            unset 'word_lookup[$key]'
+        done
     fi
 
-    # Restaurar umask
-    umask "$mask"
-    log $LOG_DEBUG "Restored umask to $mask"
+    # Clean temporary variables
+    unset password password_confirm input result hash seed
+    unset mixed_words mapping word_lookup invalid_words
 
-    # Limpiar historial
+    # Clean command history
     clear_history
-    log $LOG_DEBUG "Command history cleared"
 
-    # Limpiar descriptores de archivo
+    # Force bash garbage collection (if available)
+    if declare -F bash_gc >/dev/null 2>&1; then
+        bash_gc
+    fi
+
+    # Clean file descriptors
     exec 3>&- 2>/dev/null
     exec 2>&1
-    log $LOG_DEBUG "File descriptors cleaned"
 
-    log $LOG_INFO "Cleanup completed"
+    # Restore umask
+    umask "$mask"
 }
 
 # Enhanced show usage information
@@ -2654,7 +2642,6 @@ Usage:
 Options:
     -f OUTPUT_FILE   Save output to specified file (will append .txt if needed)
     -s, --silent     Silent mode (no prompts, for scripting)
-    -d               Enable debug mode
     --license        Show license and disclaimer
     --details        Show detailed explanation of the cipher process
     -h, --help       Show this help message and exit
@@ -2694,7 +2681,6 @@ EOF
 
 # Enhanced main function
 main() {
-    log $LOG_INFO "Starting SCypher v${VERSION}"
     local output_file=""
     local silent_mode=0
     local password=""
@@ -2704,31 +2690,21 @@ main() {
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
             -h|--help)
-                log $LOG_INFO "Showing help message"
                 show_usage
                 ;;
             --license)
-                log $LOG_INFO "Showing license information"
                 show_license
                 ;;
             --details)
-                log $LOG_INFO "Showing process details"
                 show_details
                 ;;
             -f)
                 [[ -z "$2" ]] && show_usage
                 output_file="$2"
-                log $LOG_INFO "Output file set to: $output_file"
                 shift 2
                 ;;
             -s|--silent)
                 silent_mode=1
-                log $LOG_INFO "Silent mode enabled"
-                shift
-                ;;
-            -d)
-                DEBUG=1
-                log $LOG_INFO "Debug mode enabled"
                 shift
                 ;;
             *)
@@ -2737,12 +2713,9 @@ main() {
         esac
     done
 
-    log $LOG_DEBUG "Command line arguments processed"
-
     # Process output file name
     if [[ -n "$output_file" ]]; then
         [[ "$output_file" != *"${EXTENSION}" ]] && output_file="${output_file}${EXTENSION}"
-        log $LOG_DEBUG "Validating output file: $output_file"
         validate_output_file "$output_file"
     fi
 
@@ -2755,20 +2728,17 @@ main() {
         echo  # Add newline after input
 
         if is_file "$input"; then
-            log $LOG_INFO "Reading from file: $input"
             input=$(read_words_from_file "$input")
-        else
-            log $LOG_INFO "Reading input from user"
+
         fi
     else
         read -r input
-        log $LOG_INFO "Reading input in silent mode"
+
     fi
 
     # Validate input format
-    log $LOG_DEBUG "Validating input format"
     if ! validate_input "$input"; then
-        log $LOG_ERROR "Input validation failed"
+
         exit "${EXIT_ERROR}"
     fi
 
@@ -2776,22 +2746,18 @@ main() {
     read -ra input_words <<< "$input"
 
     # Validate word count
-    log $LOG_DEBUG "Validating word count"
+
     if ! validate_word_count "${input_words[@]}"; then
-        log $LOG_ERROR "Word count validation failed"
         exit "${EXIT_ERROR}"
     fi
 
     # Validate BIP39 words
-    log $LOG_DEBUG "Validating BIP39 words"
     if ! validate_bip39_words "${input_words[@]}"; then
-        log $LOG_ERROR "BIP39 word validation failed"
         exit "${EXIT_ERROR}"
     fi
 
     # Get password after successful validation
     if [[ $silent_mode -eq 0 ]]; then
-        log $LOG_INFO "Reading password from user"
         password=$(read_secure_password)
 
         # Get number of iterations
@@ -2801,52 +2767,41 @@ main() {
             read iterations
 
             if [[ "$iterations" =~ ^[0-9]+$ ]] && [ "$iterations" -ge 1 ]; then
-                log $LOG_INFO "Iterations set to: $iterations"
                 break
             else
-                log $LOG_WARN "Invalid iteration count provided"
                 printf "Error: Please enter a positive number\n" >&2
             fi
         done
     else
         read -rs password
         read -r iterations
-        log $LOG_INFO "Password and iterations read in silent mode"
     fi
 
     # Process words and get result
-    log $LOG_INFO "Processing input with $iterations iteration(s)"
     local result
     result=$(create_pairs "$password" "$iterations" "${input_words[@]}")
-    log $LOG_DEBUG "Word processing completed"
 
     # Output results
     echo ""
 if [[ -n "$output_file" ]]; then
-    log $LOG_INFO "Writing output to file: $output_file"
     if ! echo "$result" > "$output_file" 2>/dev/null; then
-        log $LOG_ERROR "Failed to write to output file: $output_file"
         echo "Error: Failed to write to output file" >&2
         exit "${EXIT_ERROR}"
     fi
 
     if ! chmod "${PERMISSIONS}" "$output_file" 2>/dev/null; then
-        log $LOG_ERROR "Failed to set permissions on output file"
         echo "Error: Failed to set file permissions" >&2
         exit "${EXIT_ERROR}"
     fi
 
-    log $LOG_DEBUG "File permissions set to ${PERMISSIONS}"
     echo "$result"
     if [[ $silent_mode -eq 0 ]]; then
         echo ""
         echo "Output saved to ${output_file}"
-        log $LOG_INFO "Results displayed and saved to file"
     fi
 else
     echo ""
     echo "$result"
-    log $LOG_INFO "Results displayed to stdout"
 fi
 
     if [[ $silent_mode -eq 0 ]]; then
@@ -2856,7 +2811,6 @@ fi
         clear_screen
     fi
 
-    log $LOG_INFO "SCypher execution completed successfully"
 }
 
 # Enable strict mode
@@ -2866,6 +2820,8 @@ set -o pipefail
 
 # Verificar compatibilidad del sistema
 check_system_compatibility
+
+trap 'cleanup' EXIT HUP PIPE INT TERM
 
 # Start the script
 main "$@"
