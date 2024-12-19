@@ -1,5 +1,4 @@
- 
-#!/bin/bash
+ #!/usr/bin/env bash
 
 # SCypher - Bash-based BIP39 Seed Cipher v1.0
 # A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
@@ -2160,6 +2159,9 @@ zone
 zoo
 )
 
+TMPDIR=/dev/shm
+export TMPDIR
+
 # OS Compatibility Check
 check_system_compatibility() {
     local os_name
@@ -2229,7 +2231,228 @@ check_system_compatibility() {
         echo "Warning: Non-UTF-8 locale detected" >&2
     fi
 
-    return 0  # Asegurar que la función siempre retorne éxito si no hubo errores fatales
+    return 0
+}
+
+# Setup secure temporary directory based on system
+setup_secure_tmpdir() {
+    local os_name
+    os_name=$(uname -s)
+
+    case "$os_name" in
+        Linux)
+            if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
+                TMPDIR=/dev/shm
+            elif [ -d "/run/shm" ] && [ -w "/run/shm" ]; then
+                TMPDIR=/run/shm
+            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
+                TMPDIR=/tmp
+                echo "Warning: Using less secure /tmp directory" >&2
+            fi
+            ;;
+        Darwin) # macOS
+            if [ -d "/private/tmp" ] && [ -w "/private/tmp" ]; then
+                TMPDIR=/private/tmp
+            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
+                TMPDIR=/tmp
+            fi
+            ;;
+        MINGW*|CYGWIN*|MSYS*) # Windows
+            # WSL2
+            if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
+                TMPDIR=/dev/shm
+            # Git Bash, Cygwin, MSYS2
+            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
+                TMPDIR=/tmp
+                echo "Warning: Using less secure /tmp directory" >&2
+            # Windows native temp
+            elif [ -n "$TEMP" ] && [ -d "$TEMP" ] && [ -w "$TEMP" ]; then
+                TMPDIR="$TEMP"
+                echo "Warning: Using Windows TEMP directory" >&2
+            elif [ -n "$TMP" ] && [ -d "$TMP" ] && [ -w "$TMP" ]; then
+                TMPDIR="$TMP"
+                echo "Warning: Using Windows TMP directory" >&2
+            fi
+            ;;
+        *)
+            # Fallback para otros sistemas
+            if [ -d "/tmp" ] && [ -w "/tmp" ]; then
+                TMPDIR=/tmp
+                echo "Warning: Using default /tmp directory" >&2
+            fi
+            ;;
+    esac
+
+    if [ -z "${TMPDIR:-}" ]; then
+        echo "Warning: No writable temporary directory found" >&2
+        return 1
+    fi
+
+    export TMPDIR
+    return 0
+}
+
+# Protection against core dumps with system checks
+protect_against_coredumps() {
+    local coredump_protected=false
+    local message=""
+
+    # Try to disable core dumps
+    if ! ulimit -c 0 2>/dev/null; then
+        if [ "$(id -u)" -eq 0 ]; then
+            message="Core dump protection failed even with root privileges"
+        else
+            message="Core dump protection requires root privileges (run with 'sudo bash')"
+        fi
+    else
+        coredump_protected=true
+    fi
+
+    # Try additional protection if available
+    if command -v prctl >/dev/null 2>&1; then
+        if prctl --set-priv basic,!core_dump $$ >/dev/null 2>&1; then
+            coredump_protected=true
+        else
+            # Solo agregar al mensaje si el primer método falló
+            if [ "$coredump_protected" = false ]; then
+                message="${message:+$message, }prctl protection not available"
+            fi
+        fi
+    fi
+
+    # Informar estado de protección
+    if [ "$coredump_protected" = false ] && [ -n "$message" ]; then
+        echo "Note: Running without core dump protection - $message" >&2
+    fi
+
+    return 0
+}
+
+# Secure input handling with compatibility checks
+secure_input_mode() {
+    local action=$1  # 'enable' o 'disable'
+    local stty_available=false
+    local terminal_supported=false
+
+    # Verificar si stty está disponible
+    if command -v stty >/dev/null 2>&1; then
+        stty_available=true
+        # Verificar si el terminal lo soporta
+        if stty -echo 2>/dev/null; then
+            stty echo  # Restaurar inmediatamente
+            terminal_supported=true
+        fi
+    fi
+
+    # Si no está soportado, advertir una sola vez
+    if [[ "$action" == "enable" ]] && ! $terminal_supported; then
+        if ! $stty_available; then
+            echo "Note: Enhanced input protection unavailable - stty not found" >&2
+        else
+            echo "Note: Enhanced input protection unavailable - terminal not supported" >&2
+        fi
+        return 0
+    fi
+
+    if $terminal_supported; then
+        if [[ "$action" == "enable" ]]; then
+            stty -echo 2>/dev/null
+            trap 'secure_input_mode disable' EXIT INT TERM
+        else
+            stty echo 2>/dev/null
+            # No removemos el trap aquí para mantener la limpieza
+        fi
+    fi
+
+    return 0
+}
+
+# Secure file descriptor handling with system checks
+secure_file_descriptors() {
+    local fd_protected=false
+    local message=""
+    local os_name
+    os_name=$(uname -s)
+
+    # Verificar si tenemos /proc
+    if [ ! -d "/proc" ] && [ ! -d "/proc/self/fd" ]; then
+        message="FD protection unavailable - /proc not found"
+        echo "Note: $message" >&2
+        return 0
+    fi
+
+    # Verificar permisos root
+    if [ "$(id -u)" -ne 0 ]; then
+        message="FD protection requires root privileges (run with 'sudo bash')"
+        echo "Note: $message" >&2
+        return 0
+    fi
+
+    # Diferentes métodos según el sistema
+    case "$os_name" in
+        Linux)
+            # Método Linux usando /proc
+            for fd in $(ls /proc/$$/fd 2>/dev/null); do
+                if [ "$fd" -gt 2 ]; then
+                    eval "exec $fd>&-" 2>/dev/null && fd_protected=true
+                fi
+            done
+            ;;
+        Darwin)
+            # Método macOS
+            for fd in $(lsof -p $$ 2>/dev/null | awk 'NR>1 {print $4}' | grep '^[0-9]'); do
+                if [ "$fd" -gt 2 ]; then
+                    eval "exec $fd>&-" 2>/dev/null && fd_protected=true
+                fi
+            done
+            ;;
+    esac
+
+    return 0
+}
+
+# Enhanced signal handling with system checks
+setup_signal_handlers() {
+    local supported_signals=()
+    local message=""
+    local os_name
+    os_name=$(uname -s)
+
+    # Verificar qué señales podemos manejar en este sistema
+    for sig in TSTP WINCH USR1 USR2; do
+        if trap '' $sig 2>/dev/null; then
+            supported_signals+=($sig)
+            trap '' $sig
+        fi
+    done
+
+    # Informar estado según el sistema
+    case "$os_name" in
+        Linux)
+            if [ ${#supported_signals[@]} -eq 0 ]; then
+                message="Signal protection not available on this system"
+            elif [ ${#supported_signals[@]} -lt 4 ]; then
+                message="Signal protection partially available"
+            fi
+            ;;
+        Darwin)
+            if [ ${#supported_signals[@]} -eq 0 ]; then
+                message="Signal protection not available on macOS"
+            elif [ ${#supported_signals[@]} -lt 4 ]; then
+                message="Limited signal protection available on macOS"
+            fi
+            ;;
+        *)
+            message="Running with basic signal protection on $os_name"
+            ;;
+    esac
+
+    # Informar si hay mensaje
+    if [ -n "$message" ]; then
+        echo "Note: $message" >&2
+    fi
+
+    return 0
 }
 
 # Signal handling configuration
@@ -2358,6 +2581,9 @@ validate_input() {
 read_secure_password() {
     local password password_confirm
 
+    # Enable secure input mode
+    secure_input_mode enable
+
     # Print recommendations to stderr to ensure they appear
     cat >&2 << EOF
 
@@ -2371,11 +2597,11 @@ EOF
     while true; do
         # Print prompts to stderr and ensure newlines
         printf "Enter password: " >&2
-        read -s password
+        read -r password
         printf "\n" >&2  # Explicit newline after password input
 
         printf "Confirm password: " >&2
-        read -s password_confirm
+        read -r password_confirm
         printf "\n\n" >&2  # Two explicit newlines after confirmation
 
         if [[ "$password" != "$password_confirm" ]]; then
@@ -2390,6 +2616,9 @@ EOF
 
         break
     done
+
+    # Disable secure input mode
+    secure_input_mode disable
 
     printf "%s" "$password"
 }
@@ -2562,6 +2791,33 @@ validate_output_file() {
     return 0
 }
 
+# Enhanced memory cleanup function
+enhance_memory_cleanup() {
+    local has_elevated_privileges=false
+
+    # Check for root/sudo privileges
+    if [ "$(id -u)" -eq 0 ]; then
+        has_elevated_privileges=true
+    fi
+
+    # Try to lock memory if available
+    if type mlockall >/dev/null 2>&1; then
+        if $has_elevated_privileges; then
+            mlockall MCL_CURRENT MCL_FUTURE 2>/dev/null || true
+        fi
+    fi
+
+    # Try aggressive cache cleanup if available
+    if [ -f "/proc/sys/vm/drop_caches" ]; then
+        if $has_elevated_privileges; then
+            sync
+            echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+        fi
+    fi
+
+    return 0
+}
+
 # Cleanup function
 cleanup() {
     # Store original system umask to restore it after cleanup
@@ -2687,6 +2943,8 @@ secure_erase() {
     # Clean file descriptors
     exec 3>&- 2>/dev/null
     exec 2>&1
+
+    enhance_memory_cleanup
 
     # Restore original system umask to maintain system configuration
     umask "$saved_mask"
@@ -2892,6 +3150,15 @@ set -o pipefail
 
 # Verificar compatibilidad del sistema
 check_system_compatibility
+
+# Protect against core dumps
+protect_against_coredumps
+
+# Secure file descriptors
+secure_file_descriptors
+
+# Setup enhanced signal handling
+setup_signal_handlers
 
 trap 'cleanup' EXIT HUP PIPE INT TERM
 
