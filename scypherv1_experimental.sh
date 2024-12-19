@@ -2285,6 +2285,9 @@ validate_word_count() {
     done
 
     echo "Invalid number of words: $count. Valid values are: ${VALID_WORD_COUNTS[*]}" >&2
+    echo "" >&2
+    read -p "Press enter to clear screen and continue..."
+    clear_screen
     return 1
 }
 
@@ -2561,44 +2564,85 @@ validate_output_file() {
 
 # Cleanup function
 cleanup() {
-    local -r mask=$(umask)
+    # Store original system umask to restore it after cleanup
+    local -r saved_mask=$(umask)
+
+    # Set restrictive permissions for cleanup operations
     umask 077
 
     # Helper function to securely erase data by overwriting with random data
-    secure_erase() {
-        local var_name=$1
-        if [[ -n "${!var_name:-}" ]]; then
-            # Overwrite with random data first
-            eval "$var_name=\"\$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)\""
-            # Then clear
-            eval "$var_name=''"
+secure_erase() {
+    local var_name="$1"
+    if [[ -n "${!var_name:-}" ]]; then
+        # Generar un patrón aleatorio seguro para sobrescribir
+        local random_pattern
+        random_pattern="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)"
+
+        # Verificar que es una variable válida antes de intentar escribir
+        if [[ -v "$var_name" ]]; then
+            # Sobreescribir con el patrón aleatorio
+            printf -v "$var_name" "%s" "$random_pattern"
+            # Limpiar con cadena vacía
+            printf -v "$var_name" "%s" ""
         fi
-    }
+
+        # Limpiar el patrón aleatorio
+        unset random_pattern
+    fi
+}
 
     # List of sensitive variables to clean
     local sensitive_vars=(
+    # User input and sensitive data
         "PASSWORD"              # User password
+        "password_confirm"      # Password confirmation copy
         "input"                 # Input seed phrase
         "input_words"          # Seed phrase word array
         "result"               # Operation result
+    # Cryptographic and processing variables
         "mixed_words"          # Shuffled word list
         "mapping"              # Word pair mapping table
         "seed"                 # Password-derived seed
         "hash"                 # Temporary hash used in process
         "iterations"           # Number of encryption iterations
+    # Word processing variables
+        "word"                 # Current word being processed
         "word1"               # First word in pair mapping
         "word2"               # Second word in pair mapping
         "mapped_word"         # Result of word mapping
+        "count"               # Word count
+    # Temporary and loop variables
         "temp"                # Temporary variable used in shuffle
-        "answer"              # User input for file overwrite
+        "arr"                 # Temporary array in shuffle
+        "i"                   # Loop counter
+        "j"                   # Loop counter
+        "half_size"          # Half size for word pairing
+        "size"               # Size variables
+        "key"                # Loop key for arrays
+        "answer"             # User input for file overwrite
+    # File and path variables
+        "output_file"          # Output file path
+        "file"                 # Input file path
+        "dir"                  # Directory path
+        "script_name"          # Name of the script
+    # System check variables
+        "os_name"             # Operating system name
+        "available_memory"    # Available system memory
+        "mask"                # Umask value
+    # Other function variables
+        "var_name"           # Variable name in secure_erase
+        "var"                # Loop variable in cleanup
     )
 
-    # Clean each sensitive variable
+    # Set restrictive umask
+    umask 077
+
+    # Clean each variable
     for var in "${sensitive_vars[@]}"; do
         secure_erase "$var"
     done
 
-    # Clean associative arrays if they exist
+    # Clean ALL associative arrays
     if declare -p word_lookup >/dev/null 2>&1; then
         for key in "${!word_lookup[@]}"; do
             word_lookup[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
@@ -2614,11 +2658,23 @@ cleanup() {
         done
     fi
 
-    # Clean temporary variables
+     # Clean invalid_words
+    if declare -p invalid_words >/dev/null 2>&1; then
+        for key in "${!invalid_words[@]}"; do
+            invalid_words[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
+            unset 'invalid_words[$key]'
+        done
+    fi
+
+    # Unset ALL variables
+    unset ${sensitive_vars[@]}
     unset password password_confirm input result hash seed
     unset mixed_words mapping word_lookup invalid_words
     unset iterations word1 word2 mapped_word temp answer
-    unset i j half_size size
+    unset i j half_size size output_file file dir arr
+    unset os_name available_memory mask var_name var key
+    unset word count script_name
+    unset -f secure_erase
 
     # Clean command history
     clear_history
@@ -2632,8 +2688,8 @@ cleanup() {
     exec 3>&- 2>/dev/null
     exec 2>&1
 
-    # Restore umask
-    umask "$mask"
+    # Restore original system umask to maintain system configuration
+    umask "$saved_mask"
 }
 
 # Enhanced show usage information
