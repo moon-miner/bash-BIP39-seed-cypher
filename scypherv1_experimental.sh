@@ -1,5 +1,11 @@
  #!/usr/bin/env bash
 
+ # Verifica que el script se ejecute con bash
+if [ -z "$BASH_VERSION" ]; then
+  echo "This script requires bash. Please run it with sudo bash."
+  exit 1
+fi
+
 # SCypher - Bash-based BIP39 Seed Cipher v1.0
 # A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
 #
