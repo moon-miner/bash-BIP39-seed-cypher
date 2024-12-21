@@ -17,7 +17,7 @@
 
  # Verifica que el script se ejecute con bash
 if [ -z "$BASH_VERSION" ]; then
-  echo "This script requires bash. Please run it with sudo bash."
+  echo "This script requires bash. Please run it with sudo bash $0"
   exit 1
 fi
 
@@ -2465,9 +2465,6 @@ setup_signal_handlers() {
     return 0
 }
 
-# Signal handling configuration
-trap 'cleanup' EXIT HUP PIPE INT TERM
-
 # Function to show license and disclaimer
 show_license() {
     echo "$LICENSE_TEXT"
@@ -2485,6 +2482,24 @@ clear_screen() {
     echo -e "\033[2J\033[H"
 }
 
+# Función para manejar errores de forma estandarizada
+handle_error() {
+    local error_message="$1"
+
+    # Mostrar mensaje de error
+    echo "Error: $error_message" >&2
+    echo "" >&2
+
+    # Esperar input del usuario
+    read -p "Press enter to clear screen and continue..."
+
+    # Limpiar pantalla
+    clear_screen
+
+    # Terminar script
+    exit "${EXIT_ERROR}"
+}
+
 # Function to clear command history
 clear_history() {
     history -c
@@ -2500,10 +2515,36 @@ is_file() {
 read_words_from_file() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
-        echo "Error: File not found: $file" >&2
+        echo "" >&2
+        echo "Error: File not found" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
         exit "${EXIT_ERROR}"
     fi
-    tr '\n' ' ' < "$file"
+
+    # Verificar permisos de lectura
+    if [[ ! -r "$file" ]]; then
+        echo "" >&2
+        echo "Error: Cannot read file" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
+        exit "${EXIT_ERROR}"
+    fi
+
+    # Intentar leer el archivo
+    local content
+    if ! content=$(tr '\n' ' ' < "$file" 2>/dev/null); then
+        echo "" >&2
+        echo "Error: Failed to read file" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
+        exit "${EXIT_ERROR}"
+    fi
+
+    echo "$content"
 }
 
 # Function to validate word count
@@ -2517,9 +2558,12 @@ validate_word_count() {
         fi
     done
 
-    echo "Invalid number of words: $count. Valid values are: ${VALID_WORD_COUNTS[*]}" >&2
     echo "" >&2
-    read -p "Press enter to clear screen and continue..."
+    echo "Error: Invalid number of words detected" >&2
+    echo "Expected number of words: ${VALID_WORD_COUNTS[*]}" >&2
+    echo "Found: $count words" >&2
+    echo "" >&2
+    read -p "Press enter to clear screen and try again..."
     clear_screen
     return 1
 }
@@ -2545,13 +2589,17 @@ validate_bip39_words() {
 
     # If invalid words found, show them all
     if ((count > 0)); then
-        echo "Invalid BIP39 words found:" >&2
+        echo "" >&2
+        echo "Error: Invalid BIP39 words detected" >&2
+        echo "The following words are not in the BIP39 wordlist:" >&2
         for word in "${!invalid_words[@]}"; do
             echo "  - $word" >&2
         done
-        echo -e "\nPlease verify that you have typed the words correctly. You can find the complete BIP39 word list in the script by opening it with a text editor." >&2
         echo "" >&2
-        read -p "Press enter to clear screen and continue..."
+        echo "Please verify your seed phrase and try again." >&2
+        echo "You can find the complete BIP39 word list in the script by opening it with a text editor." >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and try again..."
 
         # Clean sensitive data before clearing screen
         for word in "${!invalid_words[@]}"; do
@@ -2574,13 +2622,17 @@ validate_input() {
 
     # Verificar caracteres no permitidos
     if [[ "$input" =~ [^a-zA-Z0-9\ ] ]]; then
-        echo "Error: Input contains invalid characters" >&2
+        echo "" >&2
+        echo "Error: Input contains invalid characters (only letters and numbers allowed)" >&2
+        echo "" >&2
         return 1
     fi
 
     # Verificar longitud máxima
     if [[ ${#input} -gt 1024 ]]; then
-        echo "Error: Input too long" >&2
+        echo "" >&2
+        echo "Error: Input exceeds maximum length of 1024 characters" >&2
+        echo "" >&2
         return 1
     fi
 
@@ -2612,15 +2664,21 @@ EOF
 
         printf "Confirm password: " >&2
         read -r password_confirm
-        printf "\n\n" >&2  # Two explicit newlines after confirmation
+        printf "\n" >&2  # One newline after confirmation
 
         if [[ "$password" != "$password_confirm" ]]; then
-            printf "Passwords do not match. Please try again.\n\n" >&2
+            echo "Error: Passwords do not match" >&2
+            echo "" >&2
+            read -p "Press enter to try again..."
+            echo "" >&2
             continue
         fi
 
         if [[ ${#password} -lt ${MIN_PASSWORD_LENGTH} ]]; then
-            printf "Error: Password must be at least ${MIN_PASSWORD_LENGTH} characters long\n\n" >&2
+            echo "Error: Password must be at least ${MIN_PASSWORD_LENGTH} characters long" >&2
+            echo "" >&2
+            read -p "Press enter to try again..."
+            echo "" >&2
             continue
         fi
 
@@ -2707,7 +2765,11 @@ create_pairs() {
     local -i half_size=$(( ${#mixed_words[@]} / 2 ))
 
     if (( ${#mixed_words[@]} % 2 != 0 )); then
+        echo "" >&2
         echo "Error: Internal error - invalid word list size" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
         exit "${EXIT_ERROR}"
     fi
 
@@ -2718,12 +2780,20 @@ create_pairs() {
         local word2="${mixed_words[i + half_size]}"
 
         if [[ -z "$word1" || -z "$word2" ]]; then
+            echo "" >&2
             echo "Error: Empty word detected in mapping" >&2
+            echo "" >&2
+            read -p "Press enter to clear screen and exit..."
+            clear_screen
             exit "${EXIT_ERROR}"
         fi
 
         if [[ "$word1" =~ [[:space:]] || "$word2" =~ [[:space:]] ]]; then
+            echo "" >&2
             echo "Error: Word contains whitespace" >&2
+            echo "" >&2
+            read -p "Press enter to clear screen and exit..."
+            clear_screen
             exit "${EXIT_ERROR}"
         fi
 
@@ -2740,14 +2810,22 @@ create_pairs() {
             local mapped_word="${mapping[$word]}"
 
             if [[ -z "$mapped_word" || "$mapped_word" =~ [[:space:]] ]]; then
-                echo "Error: Invalid mapping result for '$word'" >&2
+                echo "" >&2
+                echo "Error: Internal operation failed - mapping error" >&2
+                echo "" >&2
+                read -p "Press enter to clear screen and exit..."
+                clear_screen
                 exit "${EXIT_ERROR}"
             fi
 
             [[ -n "$output" ]] && output+=" "
             output+="$mapped_word"
         else
-            echo "Error: '$word' is not in BIP39 wordlist" >&2
+            echo "" >&2
+            echo "Error: Invalid word detected in seed phrase" >&2
+            echo "" >&2
+            read -p "Press enter to clear screen and exit..."
+            clear_screen
             exit "${EXIT_ERROR}"
         fi
     done
@@ -2762,23 +2840,35 @@ validate_output_file() {
     dir=$(dirname "$file")
 
     # Validar que el directorio existe y tiene permisos de escritura
-    [[ ! -d "$dir" ]] && {
-        echo "Error: Directory does not exist: $dir" >&2
+    if [[ ! -d "$dir" ]]; then
+        echo "" >&2
+        echo "Error: Directory does not exist" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
         exit "${EXIT_ERROR}"
-    }
+    fi
 
-    [[ ! -w "$dir" ]] && {
-        echo "Error: No write permission in directory: $dir" >&2
+    if [[ ! -w "$dir" ]]; then
+        echo "" >&2
+        echo "Error: No write permission in directory" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
         exit "${EXIT_ERROR}"
-    }
+    fi
 
     # Verificar si el archivo existe
     if [[ -e "$file" ]]; then
         # Verificar permisos de escritura del archivo
-        [[ ! -w "$file" ]] && {
-            echo "Error: Cannot write to existing file: $file" >&2
+        if [[ ! -w "$file" ]]; then
+            echo "" >&2
+            echo "Error: Cannot write to existing file" >&2
+            echo "" >&2
+            read -p "Press enter to clear screen and exit..."
+            clear_screen
             exit "${EXIT_ERROR}"
-        }
+        fi
 
         # Preguntar al usuario si desea sobrescribir
         while true; do
@@ -2788,7 +2878,11 @@ validate_output_file() {
                     return 0
                     ;;
                 [Nn]* )
+                    echo "" >&2
                     echo "Operation cancelled by user" >&2
+                    echo "" >&2
+                    read -p "Press enter to clear screen and exit..."
+                    clear_screen
                     exit "${EXIT_ERROR}"
                     ;;
                 * )
@@ -2960,6 +3054,49 @@ secure_erase() {
     umask "$saved_mask"
 }
 
+# Verificación y advertencia de variables de entorno potencialmente peligrosas
+check_environment_security() {
+    local warnings=()
+    local ORIGINAL_PATH="$PATH"
+
+    # Verificar variables LD_*
+    for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
+        if [[ -n "${!var:-}" ]]; then
+            warnings+=("$var is set, which could affect script security")
+        fi
+    done
+
+    # Verificar BASH_ENV y ENV
+    for var in BASH_ENV ENV; do
+        if [[ -n "${!var:-}" ]]; then
+            warnings+=("$var is set, which could affect script behavior")
+        fi
+    done
+
+    # Verificar PATH
+    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    if ! command -v sha256sum >/dev/null 2>&1; then
+        warnings+=("Required commands not found in secure PATH, using original PATH")
+        PATH="$ORIGINAL_PATH"
+    fi
+
+    # Verificar IFS personalizado
+    if [[ "$IFS" != $' \t\n' ]]; then
+        warnings+=("Custom IFS detected, which could affect word processing")
+    fi
+
+    # Mostrar advertencias si existen
+    if (( ${#warnings[@]} > 0 )); then
+        echo "Security Warnings:" >&2
+        printf ' - %s\n' "${warnings[@]}" >&2
+        echo "The script will continue with reduced security" >&2
+        echo "" >&2
+    fi
+
+    export PATH
+    return 0
+}
+
 # Enhanced show usage information
 show_usage() {
     local script_name
@@ -3059,28 +3196,45 @@ main() {
         validate_output_file "$output_file"
     fi
 
-    # Interactive input phase
-    local input
+# Interactive input phase
+local input
+while true; do
     if [[ $silent_mode -eq 0 ]]; then
         echo ""
         echo -n "Enter seed phrase or input file: "
         read -r input
-        echo  # Add newline after input
+        echo
 
         if is_file "$input"; then
             input=$(read_words_from_file "$input")
-
         fi
     else
         read -r input
-
     fi
 
     # Validate input format
     if ! validate_input "$input"; then
-
-        exit "${EXIT_ERROR}"
+        echo "" >&2
+        read -p "Press enter to clear screen and try again..."
+        clear_screen
+        continue
     fi
+
+    # Convert input to array
+    read -ra input_words <<< "$input"
+
+    # Validate word count
+    if ! validate_word_count "${input_words[@]}"; then
+        continue
+    fi
+
+    # Validate BIP39 words
+    if ! validate_bip39_words "${input_words[@]}"; then
+        continue
+    fi
+
+    break
+done
 
     # Convert input to array
     read -ra input_words <<< "$input"
@@ -3096,7 +3250,7 @@ main() {
         exit "${EXIT_ERROR}"
     fi
 
-    # Get password after successful validation
+# Get password after successful validation
     if [[ $silent_mode -eq 0 ]]; then
         password=$(read_secure_password)
 
@@ -3110,27 +3264,41 @@ main() {
                 break
             else
                 printf "Error: Please enter a positive number\n" >&2
+                echo "" >&2
+                read -p "Press enter to clear screen and try again..."
+                clear_screen
             fi
         done
     else
         read -rs password
         read -r iterations
+        if ! [[ "$iterations" =~ ^[0-9]+$ ]] || [ "$iterations" -lt 1 ]; then
+            handle_error "Invalid number of iterations"
+        fi
     fi
 
     # Process words and get result
     local result
     result=$(create_pairs "$password" "$iterations" "${input_words[@]}")
 
-    # Output results
-    echo ""
+# Output results
+echo ""
 if [[ -n "$output_file" ]]; then
     if ! echo "$result" > "$output_file" 2>/dev/null; then
+        echo "" >&2
         echo "Error: Failed to write to output file" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
         exit "${EXIT_ERROR}"
     fi
 
     if ! chmod "${PERMISSIONS}" "$output_file" 2>/dev/null; then
+        echo "" >&2
         echo "Error: Failed to set file permissions" >&2
+        echo "" >&2
+        read -p "Press enter to clear screen and exit..."
+        clear_screen
         exit "${EXIT_ERROR}"
     fi
 
@@ -3153,53 +3321,13 @@ fi
 
 }
 
+
+
 # Enable strict mode
 set -o errexit
 set -o nounset
 set -o pipefail
 
-# Verificación y advertencia de variables de entorno potencialmente peligrosas
-check_environment_security() {
-    local warnings=()
-    local ORIGINAL_PATH="$PATH"
-
-    # Verificar variables LD_*
-    for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
-        if [[ -n "${!var:-}" ]]; then
-            warnings+=("$var is set, which could affect script security")
-        fi
-    done
-
-    # Verificar BASH_ENV y ENV
-    for var in BASH_ENV ENV; do
-        if [[ -n "${!var:-}" ]]; then
-            warnings+=("$var is set, which could affect script behavior")
-        fi
-    done
-
-    # Verificar PATH
-    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    if ! command -v sha256sum >/dev/null 2>&1; then
-        warnings+=("Required commands not found in secure PATH, using original PATH")
-        PATH="$ORIGINAL_PATH"
-    fi
-
-    # Verificar IFS personalizado
-    if [[ "$IFS" != $' \t\n' ]]; then
-        warnings+=("Custom IFS detected, which could affect word processing")
-    fi
-
-    # Mostrar advertencias si existen
-    if (( ${#warnings[@]} > 0 )); then
-        echo "Security Warnings:" >&2
-        printf ' - %s\n' "${warnings[@]}" >&2
-        echo "The script will continue with reduced security" >&2
-        echo "" >&2
-    fi
-
-    export PATH
-    return 0
-}
 
 # Verificar compatibilidad del sistema
 check_system_compatibility
