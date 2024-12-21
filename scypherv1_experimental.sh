@@ -3158,6 +3158,49 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# Verificación y advertencia de variables de entorno potencialmente peligrosas
+check_environment_security() {
+    local warnings=()
+    local ORIGINAL_PATH="$PATH"
+
+    # Verificar variables LD_*
+    for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
+        if [[ -n "${!var:-}" ]]; then
+            warnings+=("$var is set, which could affect script security")
+        fi
+    done
+
+    # Verificar BASH_ENV y ENV
+    for var in BASH_ENV ENV; do
+        if [[ -n "${!var:-}" ]]; then
+            warnings+=("$var is set, which could affect script behavior")
+        fi
+    done
+
+    # Verificar PATH
+    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    if ! command -v sha256sum >/dev/null 2>&1; then
+        warnings+=("Required commands not found in secure PATH, using original PATH")
+        PATH="$ORIGINAL_PATH"
+    fi
+
+    # Verificar IFS personalizado
+    if [[ "$IFS" != $' \t\n' ]]; then
+        warnings+=("Custom IFS detected, which could affect word processing")
+    fi
+
+    # Mostrar advertencias si existen
+    if (( ${#warnings[@]} > 0 )); then
+        echo "Security Warnings:" >&2
+        printf ' - %s\n' "${warnings[@]}" >&2
+        echo "The script will continue with reduced security" >&2
+        echo "" >&2
+    fi
+
+    export PATH
+    return 0
+}
+
 # Verificar compatibilidad del sistema
 check_system_compatibility
 
@@ -3169,6 +3212,9 @@ secure_file_descriptors
 
 # Setup enhanced signal handling
 setup_signal_handlers
+
+# Verify environment security
+check_environment_security
 
 trap 'cleanup' EXIT HUP PIPE INT TERM
 
