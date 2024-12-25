@@ -2724,9 +2724,8 @@ fisher_yates_shuffle() {
 
 # Generate nex seed from previous using sha-256
 generate_next_seed() {
-    local seed="$1"
-    local hash
-    hash=$(printf "%s" "$seed" | sha256sum | cut -d' ' -f1)
+    local hash="$1"
+    hash=$(printf "%s" "$hash" | sha256sum | cut -d' ' -f1)
     printf "%d" "0x${hash:0:12}"
 }
 
@@ -2737,19 +2736,20 @@ mix_words() {
     declare -a mixed_words
     mixed_words=("${WORDS[@]}")
     local seed
+    local full_hash
 
-    # Generate initial seed from password
-    seed=$(generate_seed_from_password "$password")
+    # Generate initial full hash from password
+    full_hash=$(printf "%s" "$password" | sha256sum | cut -d' ' -f1)
+    seed=$(printf "%d" "0x${full_hash:0:12}")
 
-    # Perform Fisher-Yates iterations
+    # Perform Fisher-Yates iterations using previous full hash
     for ((i = 1; i <= iterations; i++)); do
-        # Do Fisher-Yates shuffle with current seed
         mapfile -t mixed_words < <(fisher_yates_shuffle "$seed" "${mixed_words[@]}")
-        # Generate next seed from current one
-        seed=$(generate_next_seed "$seed")
+        # Next hash based on previous full hash
+        full_hash=$(printf "%s" "$full_hash" | sha256sum | cut -d' ' -f1)
+        seed=$(printf "%d" "0x${full_hash:0:12}")
     done
 
-    # Return the mixed words
     printf "%s\n" "${mixed_words[@]}"
 }
 
@@ -2956,42 +2956,43 @@ secure_erase() {
     # User input and sensitive data
         "PASSWORD"              # User password
         "password_confirm"      # Password confirmation copy
+        "full_hash"             # Full SHA-256 hash in iterations
         "input"                 # Input seed phrase
-        "input_words"          # Seed phrase word array
-        "result"               # Operation result
+        "input_words"           # Seed phrase word array
+        "result"                # Operation result
     # Cryptographic and processing variables
-        "mixed_words"          # Shuffled word list
-        "mapping"              # Word pair mapping table
-        "seed"                 # Password-derived seed
-        "hash"                 # Temporary hash used in process
-        "iterations"           # Number of encryption iterations
+        "mixed_words"           # Shuffled word list
+        "mapping"               # Word pair mapping table
+        "seed"                  # Password-derived seed
+        "hash"                  # Temporary hash used in process
+        "iterations"            # Number of encryption iterations
     # Word processing variables
-        "word"                 # Current word being processed
-        "word1"               # First word in pair mapping
-        "word2"               # Second word in pair mapping
-        "mapped_word"         # Result of word mapping
-        "count"               # Word count
+        "word"                  # Current word being processed
+        "word1"                 # First word in pair mapping
+        "word2"                 # Second word in pair mapping
+        "mapped_word"           # Result of word mapping
+        "count"                 # Word count
     # Temporary and loop variables
-        "temp"                # Temporary variable used in shuffle
-        "arr"                 # Temporary array in shuffle
-        "i"                   # Loop counter
-        "j"                   # Loop counter
-        "half_size"          # Half size for word pairing
-        "size"               # Size variables
-        "key"                # Loop key for arrays
-        "answer"             # User input for file overwrite
+        "temp"                  # Temporary variable used in shuffle
+        "arr"                   # Temporary array in shuffle
+        "i"                     # Loop counter
+        "j"                     # Loop counter
+        "half_size"             # Half size for word pairing
+        "size"                  # Size variables
+        "key"                   # Loop key for arrays
+        "answer"                # User input for file overwrite
     # File and path variables
-        "output_file"          # Output file path
-        "file"                 # Input file path
-        "dir"                  # Directory path
-        "script_name"          # Name of the script
+        "output_file"           # Output file path
+        "file"                  # Input file path
+        "dir"                   # Directory path
+        "script_name"           # Name of the script
     # System check variables
-        "os_name"             # Operating system name
-        "available_memory"    # Available system memory
-        "mask"                # Umask value
+        "os_name"               # Operating system name
+        "available_memory"      # Available system memory
+        "mask"                  # Umask value
     # Other function variables
-        "var_name"           # Variable name in secure_erase
-        "var"                # Loop variable in cleanup
+        "var_name"              # Variable name in secure_erase
+        "var"                   # Loop variable in cleanup
     )
 
     # Set restrictive umask
@@ -3028,7 +3029,7 @@ secure_erase() {
 
     # Unset ALL variables
     unset ${sensitive_vars[@]}
-    unset password password_confirm input result hash seed
+    unset password password_confirm input result hash seed full_hash
     unset mixed_words mapping word_lookup invalid_words
     unset iterations word1 word2 mapped_word temp answer
     unset i j half_size size output_file file dir arr
