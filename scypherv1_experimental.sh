@@ -9,7 +9,7 @@
 #
 # System Requirements:
 # - Bash 4.0 or higher (for associative arrays)
-# - sha256sum command (usually part of coreutils)
+# - OpenSSL 3.0 or higher (for SHAKE-256 support)
 # - Basic POSIX utilities (read, printf, etc.)
 # - At least 100MB of available RAM
 # - Write permissions in the output directory
@@ -104,18 +104,20 @@ all systems that use BIP39 seed phrases."
 readonly COMPATIBILITY_INFO="
 Dependencies:
 - bash (version 4.0 or higher)
-- coreutils (for sha256sum)
+- OpenSSL 3.0 or higher (for SHAKE-256 support)
 
 Installation:
-1. Linux: Most distributions include these by default
-   If needed: sudo apt-get install coreutils
+1. Linux:
+   Debian/Ubuntu: sudo apt-get install openssl
+   Fedora/RHEL: sudo dnf install openssl
 
-2. macOS: Install via Homebrew
-   brew install bash coreutils
+2. macOS:
+   brew install openssl@3
 
 3. Windows (WSL/Cygwin/MSYS2):
-   - WSL: Follow Linux instructions
-   - Cygwin/MSYS2: Install during setup or via package manager"
+   - MSYS2: pacman -S mingw-w64-x86_64-openssl
+   - Cygwin: apt-cyg install openssl
+   - MinGW: pacman -S openssl"
 
 # BIP39 wordlist
 declare -ra WORDS=(
@@ -2185,13 +2187,67 @@ check_system_compatibility() {
                 echo "Warning: Could not determine available memory" >&2
                 available_memory=0
             fi
+
+            # Verificar OpenSSL con SHAKE-256
+            if ! command -v openssl >/dev/null 2>&1; then
+                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
+                echo "sudo apt-get install openssl # Para Debian/Ubuntu" >&2
+                echo "sudo dnf install openssl # Para Fedora/RHEL" >&2
+                exit "${EXIT_ERROR}"
+            fi
+            if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
+                echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
+                echo "Please update to OpenSSL 3.0 or higher" >&2
+                exit "${EXIT_ERROR}"
+            fi
             ;;
+
         Darwin)
             if ! available_memory=$(vm_stat | awk '/free/ {gsub(/\./, "", $3); print int($3)*4096/1024/1024}'); then
                 echo "Warning: Could not determine available memory" >&2
                 available_memory=0
             fi
+
+            # Verificar OpenSSL con SHAKE-256 en macOS
+            if ! command -v openssl >/dev/null 2>&1; then
+                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
+                echo "brew install openssl@3" >&2
+                exit "${EXIT_ERROR}"
+            fi
+            if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
+                echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
+                echo "Please update to OpenSSL 3.0 or higher" >&2
+                exit "${EXIT_ERROR}"
+            fi
             ;;
+
+        MINGW*|CYGWIN*|MSYS*)
+            # Verificar OpenSSL con SHAKE-256 en Windows
+            if ! command -v openssl >/dev/null 2>&1; then
+                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
+                case "$os_name" in
+                    MSYS*)
+                        echo "pacman -S mingw-w64-x86_64-openssl" >&2
+                        ;;
+                    CYGWIN*)
+                        echo "apt-cyg install openssl" >&2
+                        ;;
+                    MINGW*)
+                        echo "pacman -S openssl" >&2
+                        ;;
+                esac
+                exit "${EXIT_ERROR}"
+            fi
+            if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
+                echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
+                echo "Please update to OpenSSL 3.0 or higher" >&2
+                exit "${EXIT_ERROR}"
+            fi
+            if [[ "$(printf '\r')" == $'\r' ]]; then
+                echo "Warning: Windows line endings detected. This may cause issues." >&2
+            fi
+            ;;
+
         *)
             echo "Warning: Could not determine available memory on $os_name" >&2
             available_memory=0
@@ -2201,39 +2257,6 @@ check_system_compatibility() {
     if [[ $available_memory -lt 100 ]]; then
         echo "Warning: System has low available memory (${available_memory}MB)" >&2
     fi
-
-    # Verificaciones específicas por OS
-    case "$os_name" in
-        Linux)
-            if ! command -v sha256sum >/dev/null 2>&1; then
-                echo "Error: sha256sum not found. Please install GNU coreutils." >&2
-                exit "${EXIT_ERROR}"
-            fi
-            ;;
-        Darwin)
-            if ! command -v sha256sum >/dev/null 2>&1; then
-                if command -v gsha256sum >/dev/null 2>&1; then
-                    sha256sum() { gsha256sum "$@"; }
-                else
-                    echo "Error: sha256sum not found. Please install coreutils via Homebrew:" >&2
-                    echo "brew install coreutils" >&2
-                    exit "${EXIT_ERROR}"
-                fi
-            fi
-            ;;
-        MINGW*|CYGWIN*|MSYS*)
-            if ! command -v sha256sum >/dev/null 2>&1; then
-                echo "Error: sha256sum not found. Please install GNU coreutils for Windows." >&2
-                exit "${EXIT_ERROR}"
-            fi
-            if [[ "$(printf '\r')" == $'\r' ]]; then
-                echo "Warning: Windows line endings detected. This may cause issues." >&2
-            fi
-            ;;
-        *)
-            echo "Warning: Untested operating system ($os_name). Proceed with caution." >&2
-            ;;
-    esac
 
     if ! locale charmap >/dev/null 2>&1; then
         echo "Warning: Could not determine system locale" >&2
@@ -2695,8 +2718,8 @@ EOF
 generate_seed_from_password() {
     local password="$1"
     local hash
-    hash=$(printf "%s" "$password" | sha256sum | cut -d' ' -f1)
-    printf "%d" "0x${hash:0:12}"
+    hash=$(printf "%s" "$password" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2 | cut -c1-12)
+    printf "%d" "0x${hash}"
 }
 
 # Enhanced Fisher-Yates shuffle
@@ -2722,14 +2745,14 @@ fisher_yates_shuffle() {
 }
 
 
-# Generate nex seed from previous using sha-256
+# Generate next seed from previous using shake-256
 generate_next_seed() {
     local hash="$1"
-    hash=$(printf "%s" "$hash" | sha256sum | cut -d' ' -f1)
-    printf "%d" "0x${hash:0:12}"
+    hash=$(printf "%s" "$hash" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2 | cut -c1-12)
+    printf "%d" "0x${hash}"
 }
 
-# Mix words function
+# Mix words function using shake-256
 mix_words() {
     local password="$1"
     local iterations="$2"
@@ -2738,15 +2761,12 @@ mix_words() {
     local seed
     local full_hash
 
-    # Generate initial full hash from password
-    full_hash=$(printf "%s" "$password" | sha256sum | cut -d' ' -f1)
+    full_hash=$(printf "%s" "$password" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2)
     seed=$(printf "%d" "0x${full_hash:0:12}")
 
-    # Perform Fisher-Yates iterations using previous full hash
     for ((i = 1; i <= iterations; i++)); do
         mapfile -t mixed_words < <(fisher_yates_shuffle "$seed" "${mixed_words[@]}")
-        # Next hash based on previous full hash
-        full_hash=$(printf "%s" "$full_hash" | sha256sum | cut -d' ' -f1)
+        full_hash=$(printf "%s" "$full_hash" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2)
         seed=$(printf "%d" "0x${full_hash:0:12}")
     done
 
@@ -2956,7 +2976,7 @@ secure_erase() {
     # User input and sensitive data
         "PASSWORD"              # User password
         "password_confirm"      # Password confirmation copy
-        "full_hash"             # Full SHA-256 hash in iterations
+        "full_hash"             # Full SHAKE-256 hash in iterations
         "input"                 # Input seed phrase
         "input_words"           # Seed phrase word array
         "result"                # Operation result
@@ -3060,6 +3080,15 @@ check_environment_security() {
     local warnings=()
     local ORIGINAL_PATH="$PATH"
 
+    # Verificar OpenSSL con soporte SHAKE-256
+    if ! command -v openssl >/dev/null 2>&1; then
+        warnings+=("OpenSSL 3.0+ not found in PATH")
+    else
+        if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
+            warnings+=("OpenSSL installation does not support SHAKE-256")
+        fi
+    fi
+
     # Verificar variables LD_*
     for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
         if [[ -n "${!var:-}" ]]; then
@@ -3076,7 +3105,7 @@ check_environment_security() {
 
     # Verificar PATH
     PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    if ! command -v sha256sum >/dev/null 2>&1; then
+    if ! command -v openssl >/dev/null 2>&1; then
         warnings+=("Required commands not found in secure PATH, using original PATH")
         PATH="$ORIGINAL_PATH"
     fi
