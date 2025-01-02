@@ -1,21 +1,32 @@
  #!/usr/bin/env bash
 
-# SCypher - Bash-based BIP39 Seed Cipher v1.0
-# A tool for encoding/decoding BIP39 seed phrases using a deterministic Fisher-Yates (Knuth-Durstenfeld's variant)
+# SCypher - Advanced BIP39 Seed Cipher (v1.0)
+# Bash implementation of a secure BIP39 seed phrase transformation utility
+# that maintains BIP39 standard compliance for encrypted outputs.
 #
-# Resources:
-# - BIP39 Standard by M. Palatinus & P. Rusnak
-# - Developed with AI assistance (ChatGPT/Claude)
+# Core Features:
+# - Encrypted seeds remain valid BIP39 phrases
+# - Pure Bash implementation (no external dependencies except OpenSSL)
+# - Implements Fisher-Yates shuffle (Knuth-Durstenfeld variant)
+# - Uses SHAKE-256 for cryptographic operations
+# - Full BIP39 wordlist validation
+# - Memory-secure operations
+# - Cross-platform compatibility
+#
+# Development:
+# - Based on BIP39 Standard (M. Palatinus & P. Rusnak)
+# - Developed with AI assistance (Claude/ChatGPT)
+# - MIT License
 #
 # System Requirements:
-# - Bash 4.0 or higher (for associative arrays)
-# - OpenSSL 3.0 or higher (for SHAKE-256 support)
-# - Basic POSIX utilities (read, printf, etc.)
-# - At least 100MB of available RAM
-# - Write permissions in the output directory
-# - Terminal with UTF-8 support for ASCII art
+# - Bash 4.0+ (for associative arrays)
+# - OpenSSL 3.0+ (for SHAKE-256 support)
+# - Basic POSIX utilities
+# - 100MB+ available RAM
+# - Write permissions in output directory
+# - UTF-8 terminal support
 
- # Verifica que el script se ejecute con bash
+# Verify script is running under bash
 if [ -z "$BASH_VERSION" ]; then
   echo ""
   echo "This script requires bash. Please run it with sudo bash $0"
@@ -29,22 +40,21 @@ if [ "$(id -u)" -ne 0 ]; then
     echo "" >&2
 fi
 
-# Set locale
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
-# Version
+# Version number for compatibility tracking
 readonly VERSION="1.0"
 
-# Exit codes
+# Standard exit codes for program status
 readonly EXIT_SUCCESS=0
 readonly EXIT_ERROR=1
 
-# File and permission constants
+# File handling and security constants
 readonly PERMISSIONS=600
 readonly EXTENSION=".txt"
 
-# Validation constants
+# BIP39 validation and security thresholds
 readonly MIN_BASH_VERSION=4
 readonly MIN_PASSWORD_LENGTH=1
 readonly VALID_WORD_COUNTS=(12 15 18 21 24)
@@ -127,7 +137,7 @@ Installation:
    - Cygwin: apt-cyg install openssl
    - MinGW: pacman -S openssl"
 
-# BIP39 wordlist
+# Complete BIP39 wordlist (2048 words)
 declare -ra WORDS=(
 abandon
 ability
@@ -2179,13 +2189,18 @@ zone
 zoo
 )
 
-# OS Compatibility Check
+# Verify system compatibility and security requirements
+# Validates:
+# - Memory availability (minimum 100MB)
+# - OpenSSL version and SHAKE-256 support
+# - Environment variable security
+# - UTF-8 locale support
 check_system_compatibility() {
     local os_name warnings=()
     local ORIGINAL_PATH="$PATH"
     os_name=$(uname -s)
 
-    # 1. Verificaciones de memoria
+    # 1. Memory checks
     local available_memory=0
     case "$os_name" in
         Linux)
@@ -2210,7 +2225,7 @@ check_system_compatibility() {
         warnings+=("System has low available memory (${available_memory}MB)")
     fi
 
-    # 2. Verificaciones de OpenSSL
+    # 2. OpenSSL checks
     if ! command -v openssl >/dev/null 2>&1; then
         case "$os_name" in
             Linux)
@@ -2241,7 +2256,7 @@ check_system_compatibility() {
         exit "${EXIT_ERROR}"
     fi
 
-    # 3. Verificaciones de entorno
+    # 3. Environment checks
     for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
         if [[ -n "${!var:-}" ]]; then
             warnings+=("$var is set, which could affect script security")
@@ -2254,14 +2269,14 @@ check_system_compatibility() {
         fi
     done
 
-    # 4. Verificaciones de PATH
+    # 4. PATH security checks
     PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     if ! command -v openssl >/dev/null 2>&1; then
         warnings+=("Required commands not found in secure PATH, using original PATH")
         PATH="$ORIGINAL_PATH"
     fi
 
-    # 5. Verificaciones de configuración
+    # 5. Configuration checks
     if ! locale charmap >/dev/null 2>&1; then
         warnings+=("Could not determine system locale")
     elif [[ $(locale charmap) != "UTF-8" ]]; then
@@ -2272,7 +2287,7 @@ check_system_compatibility() {
         warnings+=("Custom IFS detected, which could affect word processing")
     fi
 
-    # 6. Mostrar advertencias
+    # 6. Display warnings
     if (( ${#warnings[@]} > 0 )); then
         echo "System Compatibility Warnings:" >&2
         printf ' - %s\n' "${warnings[@]}" >&2
@@ -2284,7 +2299,11 @@ check_system_compatibility() {
     return 0
 }
 
-# Protection against core dumps with system checks
+# Prevent core dumps from leaking sensitive data
+# Methods:
+# - Sets ulimit restrictions
+# - Applies prctl protection if available
+# - Reports protection status
 protect_against_coredumps() {
     local coredump_protected=false
     local message=""
@@ -2305,14 +2324,14 @@ protect_against_coredumps() {
         if prctl --set-priv basic,!core_dump $$ >/dev/null 2>&1; then
             coredump_protected=true
         else
-            # Solo agregar al mensaje si el primer método falló
+            # Only add to message if first method failed
             if [ "$coredump_protected" = false ]; then
                 message="${message:+$message, }prctl protection not available"
             fi
         fi
     fi
 
-    # Informar estado de protección
+    # Report protection status
     if [ "$coredump_protected" = false ] && [ -n "$message" ]; then
         echo "Note: Running without core dump protection - $message" >&2
     fi
@@ -2320,23 +2339,27 @@ protect_against_coredumps() {
     return 0
 }
 
-# Secure input handling with compatibility checks
+# Configure terminal for secure password input
+# Manages:
+# - Terminal echo settings
+# - Signal trap setup/cleanup
+# - Fallback handling for unsupported terminals
 secure_input_mode() {
-    local action=$1  # 'enable' o 'disable'
+    local action=$1  # 'enable' or 'disable'
     local stty_available=false
     local terminal_supported=false
 
-    # Verificar si stty está disponible
+    # Check if stty is available
     if command -v stty >/dev/null 2>&1; then
         stty_available=true
-        # Verificar si el terminal lo soporta
+        # Check if terminal supports it
         if stty -echo 2>/dev/null; then
-            stty echo  # Restaurar inmediatamente
+            stty echo
             terminal_supported=true
         fi
     fi
 
-    # Si no está soportado, advertir una sola vez
+    # If not supported, warn only once
     if [[ "$action" == "enable" ]] && ! $terminal_supported; then
         if ! $stty_available; then
             echo "Note: Enhanced input protection unavailable - stty not found" >&2
@@ -2352,21 +2375,21 @@ secure_input_mode() {
             trap 'secure_input_mode disable' EXIT INT TERM
         else
             stty echo 2>/dev/null
-            # No removemos el trap aquí para mantener la limpieza
         fi
     fi
 
     return 0
 }
 
-# Enhanced signal handling with system checks
+# Set up signal handlers with system-specific compatibility checks
+# Handles: TSTP (terminal stop), WINCH (window change), USR1, USR2
 setup_signal_handlers() {
     local supported_signals=()
     local message=""
     local os_name
     os_name=$(uname -s)
 
-    # Verificar qué señales podemos manejar en este sistema
+    # Check which signals can be handled by the system
     for sig in TSTP WINCH USR1 USR2; do
         if trap '' $sig 2>/dev/null; then
             supported_signals+=($sig)
@@ -2374,7 +2397,7 @@ setup_signal_handlers() {
         fi
     done
 
-    # Informar estado según el sistema
+    # Report status based on system
     case "$os_name" in
         Linux)
             if [ ${#supported_signals[@]} -eq 0 ]; then
@@ -2395,7 +2418,7 @@ setup_signal_handlers() {
             ;;
     esac
 
-    # Informar si hay mensaje
+    # Display message if exists
     if [ -n "$message" ]; then
         echo "Note: $message" >&2
     fi
@@ -2403,38 +2426,38 @@ setup_signal_handlers() {
     return 0
 }
 
-# Function to show license and disclaimer
 show_license() {
     echo "$LICENSE_TEXT"
     exit "$EXIT_SUCCESS"
 }
 
-# Function to show process details
 show_details() {
     echo "$DETAILS_TEXT"
     exit "$EXIT_SUCCESS"
 }
 
-# Function to clear screen using ANSI sequences
+# Clear screen using portable ANSI escape sequences
+# Does not rely on 'clear' command for compatibility
 clear_screen() {
     echo -e "\033[2J\033[H"
 }
 
-# Función para manejar errores de forma estandarizada
+# Standardized error handling with user interaction
+# Displays error message, waits for acknowledgment, clears screen
 handle_error() {
     local error_message="$1"
 
-    # Mostrar mensaje de error
+    # Display error message
     echo "Error: $error_message" >&2
     echo "" >&2
 
-    # Esperar input del usuario
+    # Wait for user input
     read -p "Press enter to clear screen and continue..."
 
-    # Limpiar pantalla
+    # Clear screen
     clear_screen
 
-    # Terminar script
+    # Terminate script
     exit "${EXIT_ERROR}"
 }
 
@@ -2444,12 +2467,16 @@ clear_history() {
     history -w
 }
 
-# Function to check if input is a file
 is_file() {
     [[ -f "$1" ]]
 }
 
-# Function to read words from file
+# Read and validate words from input file
+# Handles:
+# - File existence and permission checks
+# - Content reading with error handling
+# - Basic input sanitization
+# Returns: Space-separated string of words
 read_words_from_file() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
@@ -2461,7 +2488,6 @@ read_words_from_file() {
         exit "${EXIT_ERROR}"
     fi
 
-    # Verificar permisos de lectura
     if [[ ! -r "$file" ]]; then
         echo "" >&2
         echo "Error: Cannot read file" >&2
@@ -2471,7 +2497,6 @@ read_words_from_file() {
         exit "${EXIT_ERROR}"
     fi
 
-    # Intentar leer el archivo
     local content
     if ! content=$(tr '\n' ' ' < "$file" 2>/dev/null); then
         echo "" >&2
@@ -2485,7 +2510,9 @@ read_words_from_file() {
     echo "$content"
 }
 
-# Function to validate word count
+# Validate word count matches BIP39 specifications
+# Checks against valid lengths: 12, 15, 18, 21, 24
+# Returns: 0 if valid, 1 otherwise with error message
 validate_word_count() {
     local -a words=("$@")
     local count=${#words[@]}
@@ -2506,13 +2533,16 @@ validate_word_count() {
     return 1
 }
 
-# Function to validate BIP39 words
+# Verify all words exist in BIP39 wordlist
+# Features:
+# - O(1) lookup using hash table
+# - Collects and reports all invalid words
+# - Memory-efficient validation
 validate_bip39_words() {
     local -a words=("$@")
     declare -A word_lookup invalid_words
     local word count=0
 
-    # Create hash table for O(1) lookup
     for word in "${WORDS[@]}"; do
         word_lookup["$word"]=1
     done
@@ -2555,10 +2585,14 @@ validate_bip39_words() {
     return 0
 }
 
+# Validate user input for security and format compliance
+# Checks:
+# - Character set restrictions (alphanumeric only)
+# - Maximum length enforcement (1024 chars)
 validate_input() {
     local input="$1"
 
-    # Verificar caracteres no permitidos
+    # Check for invalid characters
     if [[ "$input" =~ [^a-zA-Z0-9\ ] ]]; then
         echo "" >&2
         echo "Error: Input contains invalid characters (only letters and numbers allowed)" >&2
@@ -2566,7 +2600,7 @@ validate_input() {
         return 1
     fi
 
-    # Verificar longitud máxima
+    # Check maximum length
     if [[ ${#input} -gt 1024 ]]; then
         echo "" >&2
         echo "Error: Input exceeds maximum length of 1024 characters" >&2
@@ -2577,7 +2611,12 @@ validate_input() {
     return 0
 }
 
-# Function to read password securely
+# Securely read and validate user password
+# Features:
+# - Disables terminal echo
+# - Enforces minimum length
+# - Requires confirmation match
+# - Handles secure input mode
 read_secure_password() {
     local password password_confirm
 
@@ -2595,7 +2634,6 @@ Password recommendations:
 EOF
 
     while true; do
-        # Print prompts to stderr and ensure newlines
         printf "Enter password: " >&2
         read -r password
         printf "\n" >&2  # Explicit newline after password input
@@ -2629,7 +2667,9 @@ EOF
     printf "%s" "$password"
 }
 
-# Enhanced Fisher-Yates shuffle
+# Cryptographically secure Fisher-Yates shuffle implementation
+# Uses deterministic seed for reproducible results
+# Maintains constant space complexity O(1)
 fisher_yates_shuffle() {
     local -i seed="$1"
     local -a arr=("${@:2}")
@@ -2651,6 +2691,9 @@ fisher_yates_shuffle() {
     printf "%s\n" "${arr[@]}"
 }
 
+# Generate deterministic seed from password
+# Uses SHAKE-256 for cryptographic security
+# Returns: 12-byte integer seed for shuffling
 generate_seed() {
     local input="$1"
     local hash
@@ -2658,7 +2701,10 @@ generate_seed() {
     printf "%d" "0x${hash}"
 }
 
-# Mix words function using shake-256
+# Generate deterministic word permutation using SHAKE-256
+# Parameters:
+#   password: User-provided encryption key
+#   iterations: Number of shuffle rounds for additional security
 mix_words() {
     local password="$1"
     local iterations="$2"
@@ -2678,7 +2724,12 @@ mix_words() {
     printf "%s\n" "${mixed_words[@]}"
 }
 
-# Function to create deterministic word pairs and transform input using them
+# Create and apply deterministic word pair mappings
+# Process:
+# - Generates word pairs from shuffled BIP39 list
+# - Maps each word to its pair consistently
+# - Transforms input using generated mapping
+# Returns: Space-separated string of mapped words
 create_pairs() {
     local password="$1"
     local iterations="$2"
@@ -2758,13 +2809,16 @@ create_pairs() {
     echo "$output"
 }
 
-# Validate output file
+# Validate and prepare output file location
+# Checks:
+# - Directory existence and write permissions
+# - File overwrite confirmation if exists
+# - Path security validation
 validate_output_file() {
     local file="$1"
     local dir
     dir=$(dirname "$file")
 
-    # Validar que el directorio existe y tiene permisos de escritura
     if [[ ! -d "$dir" ]]; then
         echo "" >&2
         echo "Error: Directory does not exist" >&2
@@ -2783,9 +2837,7 @@ validate_output_file() {
         exit "${EXIT_ERROR}"
     fi
 
-    # Verificar si el archivo existe
     if [[ -e "$file" ]]; then
-        # Verificar permisos de escritura del archivo
         if [[ ! -w "$file" ]]; then
             echo "" >&2
             echo "Error: Cannot write to existing file" >&2
@@ -2795,7 +2847,6 @@ validate_output_file() {
             exit "${EXIT_ERROR}"
         fi
 
-        # Preguntar al usuario si desea sobrescribir
         while true; do
             read -p "File '$file' exists. Do you want to overwrite it? (y/n): " answer
             case $answer in
@@ -2821,9 +2872,11 @@ validate_output_file() {
 }
 
 
-# Cleanup function
+# Secure cleanup of sensitive data from memory
+# - Overwrites variables with random data before clearing
+# - Cleans command history and file descriptors
+# - Restores original system umask
 cleanup() {
-    # Store original system umask to restore it after cleanup
     local -r saved_mask=$(umask)
 
     # Set restrictive permissions for cleanup operations
@@ -2833,24 +2886,23 @@ cleanup() {
 secure_erase() {
     local var_name="$1"
     if [[ -n "${!var_name:-}" ]]; then
-        # Generar un patrón aleatorio seguro para sobrescribir
         local random_pattern
         random_pattern="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)"
 
-        # Verificar que es una variable válida antes de intentar escribir
         if [[ -v "$var_name" ]]; then
-            # Sobreescribir con el patrón aleatorio
+            # Overwrite with random pattern
             printf -v "$var_name" "%s" "$random_pattern"
-            # Limpiar con cadena vacía
+            # Clear with empty string
             printf -v "$var_name" "%s" ""
         fi
 
-        # Limpiar el patrón aleatorio
+        # Clean random pattern
         unset random_pattern
     fi
 }
 
-    # List of sensitive variables to clean
+    # Comprehensive list of security-sensitive variables
+    # Includes cryptographic, input, and processing variables
     local sensitive_vars=(
     # User input and sensitive data
         "PASSWORD"              # User password
@@ -2894,7 +2946,6 @@ secure_erase() {
         "var"                   # Loop variable in cleanup
     )
 
-    # Set restrictive umask
     umask 077
 
     # Clean each variable
@@ -2902,7 +2953,8 @@ secure_erase() {
         secure_erase "$var"
     done
 
-    # Clean ALL associative arrays
+    # Securely clean all associative arrays used for word mapping
+    # Overwrites with random data before unsetting
     if declare -p word_lookup >/dev/null 2>&1; then
         for key in "${!word_lookup[@]}"; do
             word_lookup[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
@@ -2988,7 +3040,6 @@ $COMPATIBILITY_INFO
 
 EOF
 
-    # ASCII Art
     cat << 'EOF'
                                   000000000
                               000000000000000000
@@ -3011,14 +3062,18 @@ EOF
     exit "$EXIT_SUCCESS"
 }
 
-# Enhanced main function
+# Main program flow and user interaction handler
+# Controls:
+# - Command line argument processing
+# - Input validation and file handling
+# - Password and iteration management
+# - Output generation and file writing
 main() {
     local output_file=""
     local silent_mode=0
     local password=""
     local input_words=()
 
-    # Process command line arguments
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
             -h|--help)
@@ -3045,7 +3100,6 @@ main() {
         esac
     done
 
-    # Process output file name
     if [[ -n "$output_file" ]]; then
         [[ "$output_file" != *"${EXTENSION}" ]] && output_file="${output_file}${EXTENSION}"
         validate_output_file "$output_file"
@@ -3122,7 +3176,6 @@ done
     local result
     result=$(create_pairs "$password" "$iterations" "${input_words[@]}")
 
-# Output results
 echo ""
 if [[ -n "$output_file" ]]; then
     if ! echo "$result" > "$output_file" 2>/dev/null; then
@@ -3164,13 +3217,16 @@ fi
 
 
 
-# Enable strict mode
+# Enable bash strict mode for robust error handling
+# - Exit on error (-e)
+# - Exit on undefined variables (-u)
+# - Exit on pipeline failures (-o pipefail)
 set -o errexit
 set -o nounset
 set -o pipefail
 
 
-# Verificar compatibilidad del sistema
+# Check system compatibility
 check_system_compatibility
 
 # Protect against core dumps
@@ -3181,5 +3237,9 @@ setup_signal_handlers
 
 trap 'cleanup' EXIT HUP PIPE INT TERM
 
-# Start the script
+# Initialize security measures and start main program
+# - System compatibility verification
+# - Core dump protection
+# - Signal handlers
+# - Main program execution
 main "$@"
