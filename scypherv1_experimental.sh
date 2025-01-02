@@ -17,8 +17,16 @@
 
  # Verifica que el script se ejecute con bash
 if [ -z "$BASH_VERSION" ]; then
+  echo ""
   echo "This script requires bash. Please run it with sudo bash $0"
   exit 1
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo ""
+    echo "Warning: Running without root privileges. Some security features will be disabled." >&2
+    echo "For full security, run with: sudo bash $0" >&2
+    echo "" >&2
 fi
 
 # Set locale
@@ -2171,157 +2179,108 @@ zone
 zoo
 )
 
-TMPDIR=/dev/shm
-export TMPDIR
-
 # OS Compatibility Check
 check_system_compatibility() {
-    local os_name
+    local os_name warnings=()
+    local ORIGINAL_PATH="$PATH"
     os_name=$(uname -s)
 
-    # Verificar requisitos de memoria
+    # 1. Verificaciones de memoria
     local available_memory=0
     case "$os_name" in
         Linux)
             if ! available_memory=$(free -m | awk '/^Mem:/{print $7}'); then
-                echo "Warning: Could not determine available memory" >&2
+                warnings+=("Could not determine available memory")
                 available_memory=0
             fi
-
-            # Verificar OpenSSL con SHAKE-256
-            if ! command -v openssl >/dev/null 2>&1; then
-                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
-                echo "sudo apt-get install openssl # Para Debian/Ubuntu" >&2
-                echo "sudo dnf install openssl # Para Fedora/RHEL" >&2
-                exit "${EXIT_ERROR}"
-            fi
-            if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
-                echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
-                echo "Please update to OpenSSL 3.0 or higher" >&2
-                exit "${EXIT_ERROR}"
-            fi
             ;;
-
         Darwin)
             if ! available_memory=$(vm_stat | awk '/free/ {gsub(/\./, "", $3); print int($3)*4096/1024/1024}'); then
-                echo "Warning: Could not determine available memory" >&2
+                warnings+=("Could not determine available memory")
                 available_memory=0
             fi
-
-            # Verificar OpenSSL con SHAKE-256 en macOS
-            if ! command -v openssl >/dev/null 2>&1; then
-                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
-                echo "brew install openssl@3" >&2
-                exit "${EXIT_ERROR}"
-            fi
-            if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
-                echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
-                echo "Please update to OpenSSL 3.0 or higher" >&2
-                exit "${EXIT_ERROR}"
-            fi
             ;;
-
-        MINGW*|CYGWIN*|MSYS*)
-            # Verificar OpenSSL con SHAKE-256 en Windows
-            if ! command -v openssl >/dev/null 2>&1; then
-                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
-                case "$os_name" in
-                    MSYS*)
-                        echo "pacman -S mingw-w64-x86_64-openssl" >&2
-                        ;;
-                    CYGWIN*)
-                        echo "apt-cyg install openssl" >&2
-                        ;;
-                    MINGW*)
-                        echo "pacman -S openssl" >&2
-                        ;;
-                esac
-                exit "${EXIT_ERROR}"
-            fi
-            if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
-                echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
-                echo "Please update to OpenSSL 3.0 or higher" >&2
-                exit "${EXIT_ERROR}"
-            fi
-            if [[ "$(printf '\r')" == $'\r' ]]; then
-                echo "Warning: Windows line endings detected. This may cause issues." >&2
-            fi
-            ;;
-
         *)
-            echo "Warning: Could not determine available memory on $os_name" >&2
+            warnings+=("Could not determine available memory on $os_name")
             available_memory=0
             ;;
     esac
 
     if [[ $available_memory -lt 100 ]]; then
-        echo "Warning: System has low available memory (${available_memory}MB)" >&2
+        warnings+=("System has low available memory (${available_memory}MB)")
     fi
 
+    # 2. Verificaciones de OpenSSL
+    if ! command -v openssl >/dev/null 2>&1; then
+        case "$os_name" in
+            Linux)
+                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
+                echo "sudo apt-get install openssl # For Debian/Ubuntu" >&2
+                echo "sudo dnf install openssl # For Fedora/RHEL" >&2
+                ;;
+            Darwin)
+                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
+                echo "brew install openssl@3" >&2
+                ;;
+            MSYS*)
+                echo "pacman -S mingw-w64-x86_64-openssl" >&2
+                ;;
+            CYGWIN*)
+                echo "apt-cyg install openssl" >&2
+                ;;
+            MINGW*)
+                echo "pacman -S openssl" >&2
+                ;;
+        esac
+        exit "${EXIT_ERROR}"
+    fi
+
+    if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
+        echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
+        echo "Please update to OpenSSL 3.0 or higher" >&2
+        exit "${EXIT_ERROR}"
+    fi
+
+    # 3. Verificaciones de entorno
+    for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
+        if [[ -n "${!var:-}" ]]; then
+            warnings+=("$var is set, which could affect script security")
+        fi
+    done
+
+    for var in BASH_ENV ENV; do
+        if [[ -n "${!var:-}" ]]; then
+            warnings+=("$var is set, which could affect script behavior")
+        fi
+    done
+
+    # 4. Verificaciones de PATH
+    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    if ! command -v openssl >/dev/null 2>&1; then
+        warnings+=("Required commands not found in secure PATH, using original PATH")
+        PATH="$ORIGINAL_PATH"
+    fi
+
+    # 5. Verificaciones de configuración
     if ! locale charmap >/dev/null 2>&1; then
-        echo "Warning: Could not determine system locale" >&2
+        warnings+=("Could not determine system locale")
     elif [[ $(locale charmap) != "UTF-8" ]]; then
-        echo "Warning: Non-UTF-8 locale detected" >&2
+        warnings+=("Non-UTF-8 locale detected")
     fi
 
-    return 0
-}
-
-# Setup secure temporary directory based on system
-setup_secure_tmpdir() {
-    local os_name
-    os_name=$(uname -s)
-
-    case "$os_name" in
-        Linux)
-            if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
-                TMPDIR=/dev/shm
-            elif [ -d "/run/shm" ] && [ -w "/run/shm" ]; then
-                TMPDIR=/run/shm
-            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
-                TMPDIR=/tmp
-                echo "Warning: Using less secure /tmp directory" >&2
-            fi
-            ;;
-        Darwin) # macOS
-            if [ -d "/private/tmp" ] && [ -w "/private/tmp" ]; then
-                TMPDIR=/private/tmp
-            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
-                TMPDIR=/tmp
-            fi
-            ;;
-        MINGW*|CYGWIN*|MSYS*) # Windows
-            # WSL2
-            if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
-                TMPDIR=/dev/shm
-            # Git Bash, Cygwin, MSYS2
-            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
-                TMPDIR=/tmp
-                echo "Warning: Using less secure /tmp directory" >&2
-            # Windows native temp
-            elif [ -n "$TEMP" ] && [ -d "$TEMP" ] && [ -w "$TEMP" ]; then
-                TMPDIR="$TEMP"
-                echo "Warning: Using Windows TEMP directory" >&2
-            elif [ -n "$TMP" ] && [ -d "$TMP" ] && [ -w "$TMP" ]; then
-                TMPDIR="$TMP"
-                echo "Warning: Using Windows TMP directory" >&2
-            fi
-            ;;
-        *)
-            # Fallback para otros sistemas
-            if [ -d "/tmp" ] && [ -w "/tmp" ]; then
-                TMPDIR=/tmp
-                echo "Warning: Using default /tmp directory" >&2
-            fi
-            ;;
-    esac
-
-    if [ -z "${TMPDIR:-}" ]; then
-        echo "Warning: No writable temporary directory found" >&2
-        return 1
+    if [[ "$IFS" != $' \t\n' ]]; then
+        warnings+=("Custom IFS detected, which could affect word processing")
     fi
 
-    export TMPDIR
+    # 6. Mostrar advertencias
+    if (( ${#warnings[@]} > 0 )); then
+        echo "System Compatibility Warnings:" >&2
+        printf ' - %s\n' "${warnings[@]}" >&2
+        echo "The script will continue with reduced security" >&2
+        echo "" >&2
+    fi
+
+    export PATH
     return 0
 }
 
@@ -2396,50 +2355,6 @@ secure_input_mode() {
             # No removemos el trap aquí para mantener la limpieza
         fi
     fi
-
-    return 0
-}
-
-# Secure file descriptor handling with system checks
-secure_file_descriptors() {
-    local fd_protected=false
-    local message=""
-    local os_name
-    os_name=$(uname -s)
-
-    # Verificar si tenemos /proc
-    if [ ! -d "/proc" ] && [ ! -d "/proc/self/fd" ]; then
-        message="FD protection unavailable - /proc not found"
-        echo "Note: $message" >&2
-        return 0
-    fi
-
-    # Verificar permisos root
-    if [ "$(id -u)" -ne 0 ]; then
-        message="FD protection requires root privileges (run with 'sudo bash')"
-        echo "Note: $message" >&2
-        return 0
-    fi
-
-    # Diferentes métodos según el sistema
-    case "$os_name" in
-        Linux)
-            # Método Linux usando /proc
-            for fd in $(ls /proc/$$/fd 2>/dev/null); do
-                if [ "$fd" -gt 2 ]; then
-                    eval "exec $fd>&-" 2>/dev/null && fd_protected=true
-                fi
-            done
-            ;;
-        Darwin)
-            # Método macOS
-            for fd in $(lsof -p $$ 2>/dev/null | awk 'NR>1 {print $4}' | grep '^[0-9]'); do
-                if [ "$fd" -gt 2 ]; then
-                    eval "exec $fd>&-" 2>/dev/null && fd_protected=true
-                fi
-            done
-            ;;
-    esac
 
     return 0
 }
@@ -2714,14 +2629,6 @@ EOF
     printf "%s" "$password"
 }
 
-# Function to generate seed from password
-generate_seed_from_password() {
-    local password="$1"
-    local hash
-    hash=$(printf "%s" "$password" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2 | cut -c1-12)
-    printf "%d" "0x${hash}"
-}
-
 # Enhanced Fisher-Yates shuffle
 fisher_yates_shuffle() {
     local -i seed="$1"
@@ -2744,11 +2651,10 @@ fisher_yates_shuffle() {
     printf "%s\n" "${arr[@]}"
 }
 
-
-# Generate next seed from previous using shake-256
-generate_next_seed() {
-    local hash="$1"
-    hash=$(printf "%s" "$hash" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2 | cut -c1-12)
+generate_seed() {
+    local input="$1"
+    local hash
+    hash=$(printf "%s" "$input" | openssl dgst -shake256 -xoflen 128 | sed 's/^.*= //' | cut -c1-12)
     printf "%d" "0x${hash}"
 }
 
@@ -2758,15 +2664,14 @@ mix_words() {
     local iterations="$2"
     declare -a mixed_words
     mixed_words=("${WORDS[@]}")
-    local seed
-    local full_hash
+    local seed full_hash
 
-    full_hash=$(printf "%s" "$password" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2)
-    seed=$(printf "%d" "0x${full_hash:0:12}")
+    seed=$(generate_seed "$password")
+    full_hash=$(printf "%s" "$password" | openssl dgst -shake256 -xoflen 128 | sed 's/^.*= //')
 
     for ((i = 1; i <= iterations; i++)); do
         mapfile -t mixed_words < <(fisher_yates_shuffle "$seed" "${mixed_words[@]}")
-        full_hash=$(printf "%s" "$full_hash" | openssl dgst -shake256 -xoflen 128 | cut -d' ' -f2)
+        full_hash=$(printf "%s" "$full_hash" | openssl dgst -shake256 -xoflen 128 |  sed 's/^.*= //' )
         seed=$(printf "%d" "0x${full_hash:0:12}")
     done
 
@@ -2915,32 +2820,6 @@ validate_output_file() {
     return 0
 }
 
-# Enhanced memory cleanup function
-enhance_memory_cleanup() {
-    local has_elevated_privileges=false
-
-    # Check for root/sudo privileges
-    if [ "$(id -u)" -eq 0 ]; then
-        has_elevated_privileges=true
-    fi
-
-    # Try to lock memory if available
-    if type mlockall >/dev/null 2>&1; then
-        if $has_elevated_privileges; then
-            mlockall MCL_CURRENT MCL_FUTURE 2>/dev/null || true
-        fi
-    fi
-
-    # Try aggressive cache cleanup if available
-    if [ -f "/proc/sys/vm/drop_caches" ]; then
-        if $has_elevated_privileges; then
-            sync
-            echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
-        fi
-    fi
-
-    return 0
-}
 
 # Cleanup function
 cleanup() {
@@ -3069,62 +2948,8 @@ secure_erase() {
     exec 3>&- 2>/dev/null
     exec 2>&1
 
-    enhance_memory_cleanup
-
     # Restore original system umask to maintain system configuration
     umask "$saved_mask"
-}
-
-# Verificación y advertencia de variables de entorno potencialmente peligrosas
-check_environment_security() {
-    local warnings=()
-    local ORIGINAL_PATH="$PATH"
-
-    # Verificar OpenSSL con soporte SHAKE-256
-    if ! command -v openssl >/dev/null 2>&1; then
-        warnings+=("OpenSSL 3.0+ not found in PATH")
-    else
-        if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
-            warnings+=("OpenSSL installation does not support SHAKE-256")
-        fi
-    fi
-
-    # Verificar variables LD_*
-    for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
-        if [[ -n "${!var:-}" ]]; then
-            warnings+=("$var is set, which could affect script security")
-        fi
-    done
-
-    # Verificar BASH_ENV y ENV
-    for var in BASH_ENV ENV; do
-        if [[ -n "${!var:-}" ]]; then
-            warnings+=("$var is set, which could affect script behavior")
-        fi
-    done
-
-    # Verificar PATH
-    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    if ! command -v openssl >/dev/null 2>&1; then
-        warnings+=("Required commands not found in secure PATH, using original PATH")
-        PATH="$ORIGINAL_PATH"
-    fi
-
-    # Verificar IFS personalizado
-    if [[ "$IFS" != $' \t\n' ]]; then
-        warnings+=("Custom IFS detected, which could affect word processing")
-    fi
-
-    # Mostrar advertencias si existen
-    if (( ${#warnings[@]} > 0 )); then
-        echo "Security Warnings:" >&2
-        printf ' - %s\n' "${warnings[@]}" >&2
-        echo "The script will continue with reduced security" >&2
-        echo "" >&2
-    fi
-
-    export PATH
-    return 0
 }
 
 # Enhanced show usage information
@@ -3266,20 +3091,6 @@ while true; do
     break
 done
 
-    # Convert input to array
-    read -ra input_words <<< "$input"
-
-    # Validate word count
-
-    if ! validate_word_count "${input_words[@]}"; then
-        exit "${EXIT_ERROR}"
-    fi
-
-    # Validate BIP39 words
-    if ! validate_bip39_words "${input_words[@]}"; then
-        exit "${EXIT_ERROR}"
-    fi
-
 # Get password after successful validation
     if [[ $silent_mode -eq 0 ]]; then
         password=$(read_secure_password)
@@ -3365,14 +3176,8 @@ check_system_compatibility
 # Protect against core dumps
 protect_against_coredumps
 
-# Secure file descriptors
-secure_file_descriptors
-
 # Setup enhanced signal handling
 setup_signal_handlers
-
-# Verify environment security
-check_environment_security
 
 trap 'cleanup' EXIT HUP PIPE INT TERM
 
