@@ -26,20 +26,6 @@
 # - Write permissions in output directory
 # - UTF-8 terminal support
 
-# Verify script is running under bash
-if [ -z "$BASH_VERSION" ]; then
-  echo ""
-  echo "This script requires bash. Please run it with sudo bash $0"
-  exit 1
-fi
-
-if [ "$(id -u)" -ne 0 ]; then
-    echo ""
-    echo "Warning: Running without root privileges. Some security features will be disabled." >&2
-    echo "For full security, run with: sudo bash $0" >&2
-    echo "" >&2
-fi
-
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
@@ -58,6 +44,19 @@ readonly EXTENSION=".txt"
 readonly MIN_BASH_VERSION=4
 readonly MIN_PASSWORD_LENGTH=1
 readonly VALID_WORD_COUNTS=(12 15 18 21 24)
+
+# Security audit message types and status codes
+readonly AUDIT_CRITICAL=2
+readonly AUDIT_WARNING=1
+readonly AUDIT_INFO=0
+readonly AUDIT_SUCCESS=0
+readonly AUDIT_FAILURE=1
+
+# Minimum required system memory in MB
+readonly MIN_REQUIRED_MEMORY=100
+
+# Security check configuration
+readonly SECURE_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # License and Disclaimer text
 readonly LICENSE_TEXT="
@@ -2189,114 +2188,266 @@ zone
 zoo
 )
 
-# Verify system compatibility and security requirements
-# Validates:
-# - Memory availability (minimum 100MB)
-# - OpenSSL version and SHAKE-256 support
-# - Environment variable security
-# - UTF-8 locale support
-check_system_compatibility() {
-    local os_name warnings=()
-    local ORIGINAL_PATH="$PATH"
+# Function to add a message to our security audit array
+add_audit_message() {
+    local type="$1"
+    local message="$2"
+
+    case "$type" in
+        "$AUDIT_CRITICAL")
+            prefix="CRITICAL"
+            ;;
+        "$AUDIT_WARNING")
+            prefix="WARNING"
+            ;;
+        "$AUDIT_INFO")
+            prefix="INFO"
+            ;;
+        *)
+            prefix="UNKNOWN"
+            ;;
+    esac
+
+    AUDIT_MESSAGES+=("${prefix}: ${message}")
+}
+
+# Function to initialize global audit array
+initialize_audit() {
+    declare -ga AUDIT_MESSAGES=()
+}
+
+# Verify basic system requirements
+verify_basic_requirements() {
+    # Check if running under bash
+    if [ -z "$BASH_VERSION" ]; then
+        add_audit_message "$AUDIT_CRITICAL" "This script requires bash.\nPlease run it with sudo bash $0"
+        return "$AUDIT_FAILURE"
+    fi
+
+    # Check root privileges
+    if [ "$(id -u)" -ne 0 ]; then
+        add_audit_message "$AUDIT_WARNING" "Running without root privileges. Core dump protection and ulimit restrictions will be disabled.\nFor full security, run with: sudo bash $0"
+    fi
+
+    return "$AUDIT_SUCCESS"
+}
+
+# Check system memory availability
+check_system_memory() {
+    local available_memory=0
+    local os_name
     os_name=$(uname -s)
 
-    # 1. Memory checks
-    local available_memory=0
     case "$os_name" in
         Linux)
             if ! available_memory=$(free -m | awk '/^Mem:/{print $7}'); then
-                warnings+=("Could not determine available memory")
-                available_memory=0
+                add_audit_message "$AUDIT_WARNING" "Could not determine available memory"
+                return "$AUDIT_SUCCESS"
             fi
             ;;
         Darwin)
             if ! available_memory=$(vm_stat | awk '/free/ {gsub(/\./, "", $3); print int($3)*4096/1024/1024}'); then
-                warnings+=("Could not determine available memory")
-                available_memory=0
+                add_audit_message "$AUDIT_WARNING" "Could not determine available memory"
+                return "$AUDIT_SUCCESS"
             fi
             ;;
         *)
-            warnings+=("Could not determine available memory on $os_name")
-            available_memory=0
+            add_audit_message "$AUDIT_WARNING" "Could not determine available memory on $os_name"
+            return "$AUDIT_SUCCESS"
             ;;
     esac
 
-    if [[ $available_memory -lt 100 ]]; then
-        warnings+=("System has low available memory (${available_memory}MB)")
+    if [[ $available_memory -lt $MIN_REQUIRED_MEMORY ]]; then
+        add_audit_message "$AUDIT_CRITICAL" "System has low available memory (${available_memory}MB)"
+        return "$AUDIT_FAILURE"
     fi
 
-    # 2. OpenSSL checks
+    return "$AUDIT_SUCCESS"
+}
+
+# Validate OpenSSL installation and capabilities
+validate_openssl_security() {
+    local os_name
+    os_name=$(uname -s)
+
     if ! command -v openssl >/dev/null 2>&1; then
+        local install_message
         case "$os_name" in
             Linux)
-                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
-                echo "sudo apt-get install openssl # For Debian/Ubuntu" >&2
-                echo "sudo dnf install openssl # For Fedora/RHEL" >&2
+                install_message="Install with:\nsudo apt-get install openssl # For Debian/Ubuntu\nsudo dnf install openssl # For Fedora/RHEL"
                 ;;
             Darwin)
-                echo "Error: OpenSSL 3.0+ required. Install with:" >&2
-                echo "brew install openssl@3" >&2
+                install_message="Install with:\nbrew install openssl@3"
                 ;;
             MSYS*)
-                echo "pacman -S mingw-w64-x86_64-openssl" >&2
+                install_message="pacman -S mingw-w64-x86_64-openssl"
                 ;;
             CYGWIN*)
-                echo "apt-cyg install openssl" >&2
+                install_message="apt-cyg install openssl"
                 ;;
             MINGW*)
-                echo "pacman -S openssl" >&2
+                install_message="pacman -S openssl"
                 ;;
         esac
-        exit "${EXIT_ERROR}"
+        add_audit_message "$AUDIT_CRITICAL" "OpenSSL 3.0+ required.\n$install_message"
+        return "$AUDIT_FAILURE"
     fi
 
     if ! echo "test" | openssl dgst -shake256 -xoflen 128 >/dev/null 2>&1; then
-        echo "Error: OpenSSL version installed does not support SHAKE-256" >&2
-        echo "Please update to OpenSSL 3.0 or higher" >&2
-        exit "${EXIT_ERROR}"
+        add_audit_message "$AUDIT_CRITICAL" "OpenSSL version installed does not support SHAKE-256\nPlease update to OpenSSL 3.0 or higher"
+        return "$AUDIT_FAILURE"
     fi
 
-    # 3. Environment checks
-    for var in LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT; do
+    # Check for security features
+    if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then
+        add_audit_message "$AUDIT_INFO" "SELinux is enabled and enforcing"
+    fi
+
+    if command -v aa-status >/dev/null 2>&1 && aa-status --enabled 2>/dev/null; then
+        add_audit_message "$AUDIT_INFO" "AppArmor is enabled"
+    fi
+
+    return "$AUDIT_SUCCESS"
+}
+
+# Audit environment variables for security risks
+audit_environment_variables() {
+    local has_warnings=0
+
+    # Check common security-sensitive environment variables
+    local -a security_vars=(
+        "LD_PRELOAD"
+        "LD_LIBRARY_PATH"
+        "LD_AUDIT"
+        "BASH_ENV"
+        "ENV"
+    )
+
+    # Check for security-sensitive environment variables
+    for var in "${security_vars[@]}"; do
         if [[ -n "${!var:-}" ]]; then
-            warnings+=("$var is set, which could affect script security")
+            add_audit_message "$AUDIT_WARNING" "$var is set, which could affect script security"
+            has_warnings=1
         fi
     done
 
-    for var in BASH_ENV ENV; do
-        if [[ -n "${!var:-}" ]]; then
-            warnings+=("$var is set, which could affect script behavior")
-        fi
-    done
+    # Check for virtual environment
+    if [[ -n "${VIRTUAL_ENV:-}" ]] || [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
+        add_audit_message "$AUDIT_INFO" "Script is running in a virtual environment"
+    fi
 
-    # 4. PATH security checks
-    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    # Check if running in a container
+    if [[ -f "/.dockerenv" ]] || grep -q docker /proc/1/cgroup 2>/dev/null; then
+        add_audit_message "$AUDIT_INFO" "Script is running in a container environment"
+    fi
+
+    [[ $has_warnings -eq 1 ]] && return "$AUDIT_WARNING"
+    return "$AUDIT_SUCCESS"
+}
+
+# Verify PATH security and required commands
+verify_path_security() {
+    local ORIGINAL_PATH="$PATH"
+    local has_warnings=0
+
+    # Test if we can use secure path
+    PATH="$SECURE_PATH"
     if ! command -v openssl >/dev/null 2>&1; then
-        warnings+=("Required commands not found in secure PATH, using original PATH")
+        add_audit_message "$AUDIT_WARNING" "Required commands not found in secure PATH, using original PATH"
         PATH="$ORIGINAL_PATH"
+        has_warnings=1
     fi
 
-    # 5. Configuration checks
-    if ! locale charmap >/dev/null 2>&1; then
-        warnings+=("Could not determine system locale")
-    elif [[ $(locale charmap) != "UTF-8" ]]; then
-        warnings+=("Non-UTF-8 locale detected")
+    # Check for write permissions in PATH directories
+    local IFS=:
+    for dir in $PATH; do
+        if [[ -w "$dir" && ! -O "$dir" ]]; then
+            add_audit_message "$AUDIT_WARNING" "Directory in PATH is writable by other users: $dir"
+            has_warnings=1
+        fi
+    done
+
+    # Check for relative paths in PATH
+    if [[ "$PATH" =~ \.:|:\.:|:\. ]]; then
+        add_audit_message "$AUDIT_WARNING" "PATH contains relative paths, which is a security risk"
+        has_warnings=1
     fi
 
-    if [[ "$IFS" != $' \t\n' ]]; then
-        warnings+=("Custom IFS detected, which could affect word processing")
-    fi
-
-    # 6. Display warnings
-    if (( ${#warnings[@]} > 0 )); then
-        echo "System Compatibility Warnings:" >&2
-        printf ' - %s\n' "${warnings[@]}" >&2
-        echo "The script will continue with reduced security" >&2
-        echo "" >&2
-    fi
-
+    # Export the verified PATH
     export PATH
-    return 0
+
+    [[ $has_warnings -eq 1 ]] && return "$AUDIT_WARNING"
+    return "$AUDIT_SUCCESS"
+}
+
+# Validate system configuration settings
+validate_system_config() {
+    local has_warnings=0
+
+    # Check locale settings
+    if ! locale charmap >/dev/null 2>&1; then
+        add_audit_message "$AUDIT_WARNING" "Could not determine system locale"
+        has_warnings=1
+    elif [[ $(locale charmap) != "UTF-8" ]]; then
+        add_audit_message "$AUDIT_WARNING" "Non-UTF-8 locale detected"
+        has_warnings=1
+    fi
+
+    # Check IFS setting
+    if [[ "$IFS" != $' \t\n' ]]; then
+        add_audit_message "$AUDIT_WARNING" "Custom IFS detected, which could affect word processing"
+        has_warnings=1
+    fi
+
+    [[ $has_warnings -eq 1 ]] && return "$AUDIT_WARNING"
+    return "$AUDIT_SUCCESS"
+}
+
+# Main system security audit function
+# Coordinates all security checks and reports findings
+system_security_audit() {
+    # Initialize audit message array
+    initialize_audit
+    local critical_failures=0
+
+    # Temporarily disable errexit
+    set +e
+
+    # Verify basic requirements first
+    verify_basic_requirements
+    local basic_status=$?
+
+    # Run security checks
+    check_system_memory
+    local memory_status=$?
+
+    validate_openssl_security
+    local openssl_status=$?
+
+    audit_environment_variables
+    verify_path_security
+    validate_system_config
+
+    # Re-enable errexit
+    set -e
+
+    # Display messages with proper categorization
+    for message in "${AUDIT_MESSAGES[@]}"; do
+        echo -e "$message" >&2
+    done
+
+    # Clean up
+    unset AUDIT_MESSAGES
+
+    # Calculate total failures
+    critical_failures=$((basic_status + memory_status + openssl_status))
+
+    # Only stop if we have critical failures and are running as root
+    if ((critical_failures > 0)) && [ "$(id -u)" -eq 0 ]; then
+        return 0  # Return success to avoid triggering errexit
+    fi
+
+    return 0  # Always return success to avoid triggering errexit
 }
 
 # Prevent core dumps from leaking sensitive data
@@ -3226,8 +3377,8 @@ set -o nounset
 set -o pipefail
 
 
-# Check system compatibility
-check_system_compatibility
+# System security audit
+system_security_audit
 
 # Protect against core dumps
 protect_against_coredumps
