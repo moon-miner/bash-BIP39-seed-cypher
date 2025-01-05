@@ -89,30 +89,49 @@ them in a valid BIP39 format. Here's how it works in simple terms:
 
 1. Starting Point:
    - You have a seed phrase (12-24 words from the BIP39 word list)
-   - You choose a password that you'll remember
+   - You choose a password and number of iterations that you'll remember
+   - The tool generates a random salt for extra security
 
 2. The Process:
-   - SCypher takes your password and uses it to create a unique mixing pattern
-   - It then pairs up all the words in the BIP39 list in a special way
-   - When you input your seed phrase, each word gets swapped with its pair
-   - This creates a new, valid seed phrase that looks completely different
+   Encryption:
+   - SCypher generates a unique random salt
+   - This salt is converted into 12 BIP39 words
+   - Your password, number of iterations, and the salt create a unique mixing pattern
+   - Your seed phrase words get swapped based on this pattern
+   - The output combines the salt words and your encrypted phrase
+
+   Decryption:
+   - SCypher extracts the first 12 words (the salt)
+   - Uses your password, number of iterations, and the extracted salt
+   - Reverses the mixing pattern to recover your original phrase
 
 3. Security Features:
+   - Each encryption uses a new random salt
+   - The salt adds 132 bits of extra security
    - The process works both ways (encoding and decoding)
-   - Only someone with your password can reverse the process
+   - Only someone with both your password and iterations can reverse the process
    - The output is always a valid BIP39 seed phrase
-   - The password never gets stored anywhere
+   - The password and iterations never get stored anywhere
 
-4. Important Notes:
+4. Understanding the Output:
+   - Encrypted result: [12 salt words] + [encrypted seed phrase]
+   - The salt is automatically included as the first 12 words
+   - The password, iterations, and salt are all needed for decoding
+   - The process is deterministic when using the same salt, password, and number of iterations
+
+5. Important Notes:
    - The number of iterations adds an extra layer of security
    - More iterations means more computational work for potential attackers
-   - Each iteration produces a different encoded phrase
    - Both the password and the number of iterations are needed for decoding
-   - Always keep your password safe - without it, you can't decode your phrase
+   - Always keep your password and number of iterations safe - without both, you can't decode your phrase
    - Maintain secure backups of original seeds
    - Test the process with a non-critical seed phrase first
    - Make sure to verify you can successfully decode before using with real funds
 
+Security Enhancement with Salt:
+The salt ensures that even if you use the same password and iterations to encrypt
+multiple seed phrases, each encryption will be unique. This prevents pattern analysis
+and adds a significant layer of security to your encrypted phrases.
 
 This tool provides an extra layer of security while maintaining compatibility with
 all systems that use BIP39 seed phrases."
@@ -2842,14 +2861,115 @@ fisher_yates_shuffle() {
     printf "%s\n" "${arr[@]}"
 }
 
-# Generate deterministic seed from password
-# Uses SHAKE-256 for cryptographic security
-# Returns: 12-byte integer seed for shuffling
-generate_seed() {
+# Generate cryptographically secure random salt using /dev/random
+# Output: 132-bit random string in hexadecimal format (33 hex characters)
+# Returns: 0 on success, 1 on failure
+generate_random_salt() {
+    local salt=""
+    local bytes_needed=17  # 132 bits = 16.5 bytes, we'll read 17 and trim
+
+    # Read random bytes from /dev/random and convert to hex using od
+    if ! salt=$(dd if=/dev/random bs=1 count=$bytes_needed 2>/dev/null | od -An -tx1 -v | tr -dc '[:xdigit:]'); then
+        echo "Error: Failed to generate random salt" >&2
+        return 1
+    fi
+
+    # Trim to exactly 132 bits (33 hex characters)
+    salt="${salt:0:33}"
+
+    # Validate hex string length
+    if [[ ${#salt} -ne 33 ]]; then
+        echo "Error: Generated salt has incorrect length" >&2
+        return 1
+    fi
+
+    echo "$salt"
+    return 0
+}
+
+# Convert hexadecimal salt to binary string
+# Input: 33-character hex string (132 bits)
+# Output: Binary string
+hex_to_binary() {
+    local hex="$1"
+    local binary=""
+    local -A hex_to_bin=(
+        ['0']='0000' ['1']='0001' ['2']='0010' ['3']='0011'
+        ['4']='0100' ['5']='0101' ['6']='0110' ['7']='0111'
+        ['8']='1000' ['9']='1001' ['a']='1010' ['b']='1011'
+        ['c']='1100' ['d']='1101' ['e']='1110' ['f']='1111'
+    )
+
+    # Convert each hex character to 4 binary digits
+    for ((i=0; i<${#hex}; i++)); do
+        binary+="${hex_to_bin[${hex:$i:1}]}"
+    done
+
+    echo "$binary"
+}
+
+# Convert 132-bit salt to 12 BIP39 words
+# Input: 33-character hex string
+# Output: Space-separated string of 12 BIP39 words
+bits_to_words() {
+    local hex_salt="$1"
+    local binary
+    local word_indices=()
+    local result=""
+
+    # Convert hex to binary
+    binary=$(hex_to_binary "$hex_salt")
+
+    # Split into 11-bit chunks and convert to decimal
+    for ((i=0; i<132; i+=11)); do
+        local chunk="${binary:$i:11}"
+        # Convert binary chunk to decimal (word index)
+        local index=$((2#$chunk))
+        word_indices+=("$index")
+    done
+
+    # Convert indices to words
+    for index in "${word_indices[@]}"; do
+        [[ -n "$result" ]] && result+=" "
+        result+="${WORDS[$index]}"
+    done
+
+    echo "$result"
+}
+
+# Convert 12 BIP39 words back to 132-bit salt
+# Input: Space-separated string of 12 BIP39 words
+# Output: 33-character hex string
+words_to_bits() {
     local input="$1"
-    local hash
-    hash=$(printf "%s" "$input" | openssl dgst -shake256 -xoflen 128 | sed 's/^.*= //' | cut -c1-12)
-    printf "%d" "0x${hash}"
+    local -a words
+    read -ra words <<< "$input"
+    local binary=""
+
+    # Convert each word to its index and then to binary
+    for word in "${words[@]}"; do
+        local index=0
+        # Find word index in WORDS array
+        for ((i=0; i<${#WORDS[@]}; i++)); do
+            if [[ "${WORDS[$i]}" == "$word" ]]; then
+                index=$i
+                break
+            fi
+        done
+
+        # Convert index to 11-bit binary
+        local bin=$(printf "%011d" "$(echo "obase=2;$index" | bc)")
+        binary+="$bin"
+    done
+
+    # Convert binary to hex
+    local hex=""
+    for ((i=0; i<132; i+=4)); do
+        local chunk="${binary:$i:4}"
+        [[ ${#chunk} -eq 4 ]] && hex+=$(printf "%x" "$((2#$chunk))")
+    done
+
+    echo "$hex"
 }
 
 # Generate deterministic word permutation using SHAKE-256
@@ -2858,18 +2978,19 @@ generate_seed() {
 #   iterations: Number of shuffle rounds for additional security
 mix_words() {
     local password="$1"
-    local iterations="$2"
+    local salt="$2"
+    local iterations="$3"
     declare -a mixed_words
     mixed_words=("${WORDS[@]}")
-    local seed full_hash
+    local seed hash
 
-    seed=$(generate_seed "$password")
-    full_hash=$(printf "%s" "$password" | openssl dgst -shake256 -xoflen 128 | sed 's/^.*= //')
+    hash=$(printf "%s%s" "$password" "$salt" | openssl dgst -shake256 -xoflen 128 | sed 's/^.*= //')
+    seed=$(printf "%d" "0x${hash:0:15}")
 
     for ((i = 1; i <= iterations; i++)); do
         mapfile -t mixed_words < <(fisher_yates_shuffle "$seed" "${mixed_words[@]}")
-        full_hash=$(printf "%s" "$full_hash" | openssl dgst -shake256 -xoflen 128 |  sed 's/^.*= //' )
-        seed=$(printf "%d" "0x${full_hash:0:12}")
+        hash=$(printf "%s%s" "$hash" "$salt" | openssl dgst -shake256 -xoflen 128 | sed 's/^.*= //')
+        seed=$(printf "%d" "0x${hash:0:15}")
     done
 
     printf "%s\n" "${mixed_words[@]}"
@@ -2883,12 +3004,13 @@ mix_words() {
 # Returns: Space-separated string of mapped words
 create_pairs() {
     local password="$1"
-    local iterations="$2"
-    shift 2
+    local salt="$2"
+    local iterations="$3"
+    shift 3
     local -a input_words=("$@")
 
     local -a mixed_words
-    mapfile -t mixed_words < <(mix_words "$password" "$iterations")
+    mapfile -t mixed_words < <(mix_words "$password" "$salt" "$iterations")
     local -i half_size=$(( ${#mixed_words[@]} / 2 ))
 
     if (( ${#mixed_words[@]} % 2 != 0 )); then
@@ -2926,7 +3048,6 @@ create_pairs() {
 
         mapping["$word1"]="$word2"
         mapping["$word2"]="$word1"
-
     done
 
     local output=""
@@ -3175,17 +3296,20 @@ Usage:
     ${script_name} [OPTIONS]
 
 Options:
-    -f OUTPUT_FILE   Save output to specified file (will append .txt if needed)
-    -s, --silent     Silent mode (no prompts, for scripting)
-    --license        Show license and disclaimer
-    --details        Show detailed explanation of the cipher process
-    -h, --help       Show this help message and exit
+    -e, --encrypt     Encryption mode (default)
+    -d, --decrypt     Decryption mode
+    -f OUTPUT_FILE    Save output to specified file (will append .txt if needed)
+    -s, --silent      Silent mode (no prompts, for scripting)
+    --license         Show license and disclaimer
+    --details         Show detailed explanation of the cipher process
+    -h, --help        Show this help message and exit
 
 Examples:
-    ${script_name} -f output.txt          # Save output to file
-    ${script_name} --license              # View license and disclaimer
-    ${script_name} --details              # Learn how the cipher works
-    ${script_name} -s < input.txt         # Process input file in silent mode
+    ${script_name} -e -f output.txt          # Encrypt and save to file
+    ${script_name} -d -f encrypted.txt       # Decrypt from file
+    ${script_name} --license                 # View license and disclaimer
+    ${script_name} --details                 # Learn how the cipher works
+    ${script_name} -s < input.txt            # Process input file in silent mode
 
 $COMPATIBILITY_INFO
 
@@ -3219,11 +3343,13 @@ EOF
 # - Input validation and file handling
 # - Password and iteration management
 # - Output generation and file writing
+# Main program flow and user interaction handler
 main() {
     local output_file=""
     local silent_mode=0
     local password=""
     local input_words=()
+    local mode="encrypt"  # Default mode
 
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
@@ -3245,6 +3371,14 @@ main() {
                 silent_mode=1
                 shift
                 ;;
+            -e|--encrypt)
+                mode="encrypt"
+                shift
+                ;;
+            -d|--decrypt)
+                mode="decrypt"
+                shift
+                ;;
             *)
                 shift
                 ;;
@@ -3256,47 +3390,66 @@ main() {
         validate_output_file "$output_file"
     fi
 
-# Interactive input phase
-local input
-while true; do
-    if [[ $silent_mode -eq 0 ]]; then
-        echo ""
-        echo -n "Enter seed phrase or input file: "
-        read -r input
-        echo
+    # Interactive input phase
+    local input
+    while true; do
+        if [[ $silent_mode -eq 0 ]]; then
+            echo ""
+            if [[ "$mode" == "encrypt" ]]; then
+                echo -n "Enter seed phrase or input file to encrypt: "
+            else
+                echo -n "Enter encrypted phrase or input file to decrypt: "
+            fi
+            read -r input
+            echo
 
-        if is_file "$input"; then
-            input=$(read_words_from_file "$input")
+            if is_file "$input"; then
+                input=$(read_words_from_file "$input")
+            fi
+        else
+            read -r input
         fi
-    else
-        read -r input
-    fi
 
-    # Validate input format
-    if ! validate_input "$input"; then
-        echo "" >&2
-        read -p "Press enter to clear screen and try again..."
-        clear_screen
-        continue
-    fi
+        # Validate input format
+        if ! validate_input "$input"; then
+            echo "" >&2
+            read -p "Press enter to clear screen and try again..."
+            clear_screen
+            continue
+        fi
 
-    # Convert input to array
-    read -ra input_words <<< "$input"
+        # Convert input to array
+        read -ra input_words <<< "$input"
 
-    # Validate word count
-    if ! validate_word_count "${input_words[@]}"; then
-        continue
-    fi
+        if [[ "$mode" == "decrypt" ]]; then
+            # For decryption, we need at least 12 words for salt plus the encrypted phrase
+            if [ ${#input_words[@]} -lt 13 ]; then
+                echo "Error: Invalid encrypted phrase (too few words)" >&2
+                continue
+            fi
+        fi
 
-    # Validate BIP39 words
-    if ! validate_bip39_words "${input_words[@]}"; then
-        continue
-    fi
+        # For encryption, validate original word count
+        # For decryption, validate total minus salt words
+        local check_words=("${input_words[@]}")
+        if [[ "$mode" == "decrypt" ]]; then
+            check_words=("${input_words[@]:12}")
+        fi
 
-    break
-done
+        # Validate word count
+        if ! validate_word_count "${check_words[@]}"; then
+            continue
+        fi
 
-# Get password after successful validation
+        # Validate BIP39 words
+        if ! validate_bip39_words "${input_words[@]}"; then
+            continue
+        fi
+
+        break
+    done
+
+    # Get password after successful validation
     if [[ $silent_mode -eq 0 ]]; then
         password=$(read_secure_password)
 
@@ -3323,47 +3476,65 @@ done
         fi
     fi
 
-    # Process words and get result
     local result
-    result=$(create_pairs "$password" "$iterations" "${input_words[@]}")
+    if [[ "$mode" == "encrypt" ]]; then
+        # Generate salt and convert to words
+        local salt
+        salt=$(generate_random_salt) || exit 1
+        local salt_words
+        salt_words=$(bits_to_words "$salt")
 
-echo ""
-if [[ -n "$output_file" ]]; then
-    if ! echo "$result" > "$output_file" 2>/dev/null; then
-        echo "" >&2
-        echo "Error: Failed to write to output file" >&2
-        echo "" >&2
-        read -p "Press enter to clear screen and exit..."
-        clear_screen
-        exit "${EXIT_ERROR}"
+        # Process input words with salt
+        local encrypted_words
+        encrypted_words=$(create_pairs "$password" "$salt" "$iterations" "${input_words[@]}")
+
+        # Combine salt words and encrypted words
+        result="$salt_words $encrypted_words"
+    else
+        # Extract salt words and convert back to bits
+        local salt_words="${input_words[@]:0:12}"
+        local salt
+        salt=$(words_to_bits "$salt_words")
+
+        # Process remaining words with extracted salt
+        result=$(create_pairs "$password" "$salt" "$iterations" "${input_words[@]:12}")
     fi
 
-    if ! chmod "${PERMISSIONS}" "$output_file" 2>/dev/null; then
-        echo "" >&2
-        echo "Error: Failed to set file permissions" >&2
-        echo "" >&2
-        read -p "Press enter to clear screen and exit..."
-        clear_screen
-        exit "${EXIT_ERROR}"
-    fi
-
-    echo "$result"
-    if [[ $silent_mode -eq 0 ]]; then
-        echo ""
-        echo "Output saved to ${output_file}"
-    fi
-else
     echo ""
-    echo "$result"
-fi
+    if [[ -n "$output_file" ]]; then
+        if ! echo "$result" > "$output_file" 2>/dev/null; then
+            echo "" >&2
+            echo "Error: Failed to write to output file" >&2
+            echo "" >&2
+            read -p "Press enter to clear screen and exit..."
+            clear_screen
+            exit "${EXIT_ERROR}"
+        fi
+
+        if ! chmod "${PERMISSIONS}" "$output_file" 2>/dev/null; then
+            echo "" >&2
+            echo "Error: Failed to set file permissions" >&2
+            echo "" >&2
+            read -p "Press enter to clear screen and exit..."
+            clear_screen
+            exit "${EXIT_ERROR}"
+        fi
+
+        echo "$result"
+        if [[ $silent_mode -eq 0 ]]; then
+            echo ""
+            echo "Output saved to ${output_file}"
+        fi
+    else
+        echo ""
+        echo "$result"
+    fi
 
     if [[ $silent_mode -eq 0 ]]; then
-        echo ""
         echo ""
         read -p "Press enter to clear screen and continue..."
         clear_screen
     fi
-
 }
 
 
