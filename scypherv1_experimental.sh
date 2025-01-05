@@ -2862,23 +2862,22 @@ fisher_yates_shuffle() {
 }
 
 # Generate cryptographically secure random salt using /dev/random
-# Output: 132-bit random string in hexadecimal format (33 hex characters)
 # Returns: 0 on success, 1 on failure
 generate_random_salt() {
     local salt=""
-    local bytes_needed=17  # 132 bits = 16.5 bytes, we'll read 17 and trim
+    local -i i
 
-    # Read random bytes from /dev/random and convert to hex using od
-    if ! salt=$(dd if=/dev/random bs=1 count=$bytes_needed 2>/dev/null | od -An -tx1 -v | tr -dc '[:xdigit:]'); then
-        echo "Error: Failed to generate random salt" >&2
-        return 1
-    fi
+    # Generar 132 bits uno por uno
+    for ((i=0; i<132; i++)); do
+        # Leemos un byte y tomamos su último bit (0 o 1)
+        if ! bit=$(dd if=/dev/random bs=1 count=1 2>/dev/null | od -An -N1 -i | awk '{print $1 % 2}'); then
+            echo "Error: Failed to generate random salt" >&2
+            return 1
+        fi
+        salt+="$bit"
+    done
 
-    # Trim to exactly 132 bits (33 hex characters)
-    salt="${salt:0:33}"
-
-    # Validate hex string length
-    if [[ ${#salt} -ne 33 ]]; then
+    if [[ ${#salt} -ne 132 ]]; then
         echo "Error: Generated salt has incorrect length" >&2
         return 1
     fi
@@ -2887,48 +2886,21 @@ generate_random_salt() {
     return 0
 }
 
-# Convert hexadecimal salt to binary string
-# Input: 33-character hex string (132 bits)
-# Output: Binary string
-hex_to_binary() {
-    local hex="$1"
-    local binary=""
-    local -A hex_to_bin=(
-        ['0']='0000' ['1']='0001' ['2']='0010' ['3']='0011'
-        ['4']='0100' ['5']='0101' ['6']='0110' ['7']='0111'
-        ['8']='1000' ['9']='1001' ['a']='1010' ['b']='1011'
-        ['c']='1100' ['d']='1101' ['e']='1110' ['f']='1111'
-    )
-
-    # Convert each hex character to 4 binary digits
-    for ((i=0; i<${#hex}; i++)); do
-        binary+="${hex_to_bin[${hex:$i:1}]}"
-    done
-
-    echo "$binary"
-}
-
 # Convert 132-bit salt to 12 BIP39 words
 # Input: 33-character hex string
 # Output: Space-separated string of 12 BIP39 words
 bits_to_words() {
-    local hex_salt="$1"
-    local binary
+    local binary_salt="$1"
     local word_indices=()
     local result=""
 
-    # Convert hex to binary
-    binary=$(hex_to_binary "$hex_salt")
 
-    # Split into 11-bit chunks and convert to decimal
     for ((i=0; i<132; i+=11)); do
-        local chunk="${binary:$i:11}"
-        # Convert binary chunk to decimal (word index)
+        local chunk="${binary_salt:$i:11}"
         local index=$((2#$chunk))
         word_indices+=("$index")
     done
 
-    # Convert indices to words
     for index in "${word_indices[@]}"; do
         [[ -n "$result" ]] && result+=" "
         result+="${WORDS[$index]}"
@@ -2962,14 +2934,7 @@ words_to_bits() {
         binary+="$bin"
     done
 
-    # Convert binary to hex
-    local hex=""
-    for ((i=0; i<132; i+=4)); do
-        local chunk="${binary:$i:4}"
-        [[ ${#chunk} -eq 4 ]] && hex+=$(printf "%x" "$((2#$chunk))")
-    done
-
-    echo "$hex"
+    echo "$binary"
 }
 
 # Generate deterministic word permutation using SHAKE-256
