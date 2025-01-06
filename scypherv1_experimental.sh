@@ -2861,28 +2861,27 @@ fisher_yates_shuffle() {
     printf "%s\n" "${arr[@]}"
 }
 
-# Generate cryptographically secure random salt using /dev/random
+# Generate cryptographically secure 132-bit random salt using OpenSSL
 # Returns: 0 on success, 1 on failure
 generate_random_salt() {
-    local salt=""
-    local -i i
+    local hex_bytes
+    local binary=""
 
-    # Generar 132 bits uno por uno
-    for ((i=0; i<132; i++)); do
-        # Leemos un byte y tomamos su último bit (0 o 1)
-        if ! bit=$(dd if=/dev/random bs=1 count=1 2>/dev/null | od -An -N1 -i | awk '{print $1 % 2}'); then
-            echo "Error: Failed to generate random salt" >&2
-            return 1
-        fi
-        salt+="$bit"
-    done
+    # Generate 17 random bytes (136 bits) to ensure we have suficientes bits
+    if ! hex_bytes=$(openssl rand -hex 17 2>/dev/null); then
+        echo "Error: Failed to generate random salt" >&2
+        return 1
+    fi
 
-    if [[ ${#salt} -ne 132 ]]; then
+    # Convert hex to binary and take exactly 132 bits
+    binary=$(echo "ibase=16; obase=2; ${hex_bytes^^}" | bc | tr -d '\\\n' | cut -c1-132)
+
+    if [[ ${#binary} -ne 132 ]]; then
         echo "Error: Generated salt has incorrect length" >&2
         return 1
     fi
 
-    echo "$salt"
+    echo "$binary"
     return 0
 }
 
