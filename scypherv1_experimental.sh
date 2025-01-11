@@ -2917,23 +2917,70 @@ words_to_bits() {
     read -ra words <<< "$input"
     local binary=""
 
-    # Convert each word to its index and then to binary
     for word in "${words[@]}"; do
         local index=0
-        # Find word index in WORDS array
         for ((i=0; i<${#WORDS[@]}; i++)); do
             if [[ "${WORDS[$i]}" == "$word" ]]; then
                 index=$i
                 break
             fi
         done
-
-        # Convert index to 11-bit binary
-        local bin=$(printf "%011d" "$(echo "obase=2;$index" | bc)")
+        # Convertir directamente a binario sin usar bc
+        local bin=$(printf "%011d" $(echo "obase=2;$index" | bc))
         binary+="$bin"
     done
 
+    # Si se especifica una longitud, truncar el resultado
+    if [[ -n "${2:-}" ]]; then
+        binary="${binary:0:$2}"
+    fi
+
     echo "$binary"
+}
+
+# Verifica el checksum de una frase BIP39
+# Input: Frase semilla como string
+# Output: 0 si es válido, 1 si no es válido
+verify_checksum() {
+    local seed_phrase="$1"
+    local word_count=$(echo "$seed_phrase" | wc -w)
+    local entropy_bits=$((word_count * 32 / 3))
+    local checksum_bits=$((entropy_bits / 32))
+
+    local binary=$(words_to_bits "$seed_phrase")
+    local entropy="${binary:0:$entropy_bits}"
+    local checksum="${binary:$entropy_bits:$checksum_bits}"
+
+    # Crear datos binarios directamente
+    local binary_stream=""
+    for ((i = 0; i < entropy_bits; i += 8)); do
+        local byte="${entropy:$i:8}"          # Extraer 8 bits
+        local dec=$((2#$byte))               # Convertir a decimal
+
+        # Validar el valor de `$dec`
+        if [[ $dec -ge 0 && $dec -le 255 ]]; then
+            # Intentar agregar el byte al flujo binario
+            if ! binary_stream+=$(printf "\\x%02x" "$dec" 2>/dev/null); then
+                return 1
+            fi
+        else
+            return 1
+        fi
+    done
+
+    # Calcular el hash
+    local hash=$(printf "%b" "$binary_stream" | openssl dgst -sha256 -binary | openssl enc -base64)
+    local first_byte=$(echo -n "$hash" | base64 -d | od -An -tx1 -N1 | tr -d ' \n')
+    local dec_value=$((16#$first_byte))
+
+    # Convertir el byte a binario
+    local bin=""
+    for ((i = 7; i >= 0; i--)); do
+        bin+=$(( (dec_value >> i) & 1 ))
+    done
+    local expected_checksum="${bin:0:$checksum_bits}"
+
+    [[ "$checksum" == "$expected_checksum" ]] && return 0 || return 1
 }
 
 # Generate deterministic word permutation using SHAKE-256
@@ -3159,6 +3206,18 @@ secure_erase() {
         "word2"                 # Second word in pair mapping
         "mapped_word"           # Result of word mapping
         "count"                 # Word count
+    # Checksum variables
+        "entropy_bits"          # Bits de entropía
+        "checksum_bits"        # Bits de checksum
+        "binary"               # String binario completo
+        "entropy"              # Parte de entropía del binario
+        "checksum"            # Parte de checksum del binario
+        "binary_stream"       # Stream de bytes para hash
+        "hash"                # Hash SHA256
+        "first_byte"          # Primer byte del hash
+        "dec_value"           # Valor decimal del byte
+        "bin"                 # Representación binaria
+        "expected_checksum"   # Checksum esperado
     # Temporary and loop variables
         "temp"                  # Temporary variable used in shuffle
         "arr"                   # Temporary array in shuffle
@@ -3410,6 +3469,22 @@ main() {
             continue
         fi
 
+        # Verificar checksum si estamos cifrando o si es el resultado del descifrado
+        if [[ "$mode" == "encrypt" ]]; then
+            if verify_checksum "$input"; then
+                add_audit_message "$AUDIT_INFO" "Input seed phrase checksum verification: Valid"
+                echo "" >&2  # Agregar línea en blanco para mejor formato
+            else
+                add_audit_message "$AUDIT_WARNING" "Input seed phrase checksum verification: Invalid"
+                echo "" >&2  # Agregar línea en blanco para mejor formato
+            fi
+
+            # Mostrar los mensajes acumulados
+            for message in "${AUDIT_MESSAGES[@]}"; do
+                echo -e "$message" >&2
+            done
+        fi
+
         break
     done
 
@@ -3492,6 +3567,22 @@ main() {
     else
         echo ""
         echo "$result"
+    fi
+
+    # Verificar checksum del resultado si estamos descifrando
+    if [[ "$mode" == "decrypt" ]]; then
+        if verify_checksum "$result"; then
+            add_audit_message "$AUDIT_INFO" "Decrypted seed phrase checksum verification: Valid"
+            echo "" >&2
+        else
+            add_audit_message "$AUDIT_WARNING" "Decrypted seed phrase checksum verification: Invalid"
+            echo "" >&2
+        fi
+
+        # Mostrar los mensajes acumulados
+        for message in "${AUDIT_MESSAGES[@]}"; do
+            echo -e "$message" >&2
+        done
     fi
 
     if [[ $silent_mode -eq 0 ]]; then
