@@ -2926,7 +2926,7 @@ words_to_bits() {
             fi
         done
         # Convertir directamente a binario sin usar bc
-        local bin=$(printf "%011d" $(echo "obase=2;$index" | bc))
+        local bin=$(printf "%011d" "$(echo "obase=2;$index" | bc)")
         binary+="$bin"
     done
 
