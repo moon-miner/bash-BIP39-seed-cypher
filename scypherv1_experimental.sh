@@ -26,6 +26,18 @@
 # - Write permissions in output directory
 # - UTF-8 terminal support
 
+if [ ! -n "$BASH" ]; then
+    echo "Este script debe ejecutarse con bash"
+    echo "Por favor, ejecutar como: sudo bash $0"
+    exit 1
+fi
+
+if [ "$BASH_VERSINFO" -lt 4 ]; then
+    echo "Este script requiere bash versión 4 o superior"
+    echo "Por favor, actualice su versión de bash"
+    exit 1
+fi
+
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
@@ -2237,12 +2249,6 @@ initialize_audit() {
 
 # Verify basic system requirements
 verify_basic_requirements() {
-    # Check if running under bash
-    if [ -z "$BASH_VERSION" ]; then
-        add_audit_message "$AUDIT_CRITICAL" "This script requires bash.\nPlease run it with sudo bash $0"
-        return "$AUDIT_FAILURE"
-    fi
-
     # Check root privileges
     if [ "$(id -u)" -ne 0 ]; then
         add_audit_message "$AUDIT_WARNING" "Running without root privileges. Core dump protection and ulimit restrictions will be disabled.\nFor full security, run with: sudo bash $0"
@@ -2320,10 +2326,6 @@ validate_openssl_security() {
     # Check for security features
     if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then
         add_audit_message "$AUDIT_INFO" "SELinux is enabled and enforcing"
-    fi
-
-    if command -v aa-status >/dev/null 2>&1 && aa-status --enabled 2>/dev/null; then
-        add_audit_message "$AUDIT_INFO" "AppArmor is enabled"
     fi
 
     return "$AUDIT_SUCCESS"
@@ -2766,14 +2768,6 @@ validate_input() {
     if [[ "$input" =~ [^a-zA-Z0-9\ ] ]]; then
         echo "" >&2
         echo "Error: Input contains invalid characters (only letters and numbers allowed)" >&2
-        echo "" >&2
-        return 1
-    fi
-
-    # Check maximum length
-    if [[ ${#input} -gt 1024 ]]; then
-        echo "" >&2
-        echo "Error: Input exceeds maximum length of 1024 characters" >&2
         echo "" >&2
         return 1
     fi
