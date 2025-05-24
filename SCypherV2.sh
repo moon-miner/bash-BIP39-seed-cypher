@@ -3001,23 +3001,31 @@ verify_checksum() {
     [[ "$checksum" == "$expected_checksum" ]] && return 0 || return 1
 }
 
-# Adjust last bits to force valid checksum
-# This maintains reversibility by storing the original bits
-# Input: Binary string with potentially invalid checksum
-# Output: Binary string with valid checksum
-force_valid_checksum() {
+# Recalculate BIP39 checksum for the given entropy
+# This function maintains BIP39 compliance after XOR transformation
+# by computing the correct checksum based on the transformed entropy bits
+#
+# The process follows BIP39 standard:
+# 1. Extract entropy portion from binary data
+# 2. Calculate SHA256 hash of entropy
+# 3. Take first N bits of hash as checksum (where N = entropy_bits/32)
+# 4. Combine entropy + correct checksum to form valid BIP39 binary
+#
+# Input: Binary string representing seed phrase (entropy + old checksum)
+# Output: Binary string with recalculated BIP39-compliant checksum
+recalculate_bip39_checksum() {
     local binary="$1"
     local word_count=$((${#binary} / 11))
     local entropy_bits=$((word_count * 32 / 3))
     local checksum_bits=$((entropy_bits / 32))
 
-    # Extract entropy part
+    # Extract entropy portion (original data, unchanged)
     local entropy="${binary:0:$entropy_bits}"
 
-    # Calculate correct checksum
+    # Calculate correct BIP39 checksum for this entropy
     local correct_checksum=$(calculate_checksum_bits "$entropy")
 
-    # Replace checksum bits
+    # Combine unchanged entropy with recalculated checksum
     binary="${entropy}${correct_checksum}"
 
     echo "$binary"
@@ -3040,8 +3048,8 @@ process_phrase_xor() {
     # Perform XOR
     local result_bits=$(xor_bits "$seed_bits" "$keystream")
 
-    # Force valid checksum
-    result_bits=$(force_valid_checksum "$result_bits")
+    # recalculate bip39 checksum
+    result_bits=$(recalculate_bip39_checksum "$result_bits")
 
     # Convert back to words
     local result_phrase=$(bits_to_words "$result_bits")
@@ -3536,5 +3544,3 @@ trap 'cleanup' EXIT HUP PIPE INT TERM
 # - Signal handlers
 # - Main program execution
 main "$@"
-
-
