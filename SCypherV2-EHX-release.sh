@@ -29,14 +29,14 @@
 # - UTF-8 terminal support
 
 if [ ! -n "$BASH" ]; then
-    echo "Este script debe ejecutarse con bash"
-    echo "Por favor, ejecutar como: sudo bash $0"
+    echo "This script must be run with bash"
+    echo "Please run as: sudo bash $0"
     exit 1
 fi
 
 if [ "$BASH_VERSINFO" -lt 4 ]; then
-    echo "Este script requiere bash versión 4 o superior"
-    echo "Por favor, actualice su versión de bash"
+    echo "This script requires bash version 4 or higher"
+    echo "Please update your bash version"
     exit 1
 fi
 
@@ -158,21 +158,19 @@ readonly COMPATIBILITY_INFO="
 Dependencies:
 - bash (version 4.0 or higher)
 - OpenSSL 3.0 or higher (for SHAKE-256 support)
-- bc (basic calculator - usually pre-installed)
 
 Installation:
 1. Linux:
-   Debian/Ubuntu: sudo apt-get install openssl bc
-   Fedora/RHEL: sudo dnf install openssl bc
+   Debian/Ubuntu: sudo apt-get install openssl
+   Fedora/RHEL: sudo dnf install openssl
 
 2. macOS:
    brew install openssl@3
-   (bc is included by default)
 
 3. Windows (WSL/Cygwin/MSYS2):
-   - MSYS2: pacman -S mingw-w64-x86_64-openssl bc
-   - Cygwin: apt-cyg install openssl bc
-   - MinGW: pacman -S openssl bc"
+   - MSYS2: pacman -S mingw-w64-x86_64-openssl
+   - Cygwin: apt-cyg install openssl
+   - MinGW: pacman -S openssl"
 
 # Complete BIP39 wordlist (2048 words)
 declare -ra WORDS=(
@@ -2261,12 +2259,6 @@ verify_basic_requirements() {
         add_audit_message "$AUDIT_WARNING" "Running without root privileges. Core dump protection and ulimit restrictions will be disabled.\nFor full security, run with: sudo bash $0"
     fi
 
-    # Check for bc availability
-    if ! command -v bc >/dev/null 2>&1; then
-        add_audit_message "$AUDIT_CRITICAL" "bc (basic calculator) is required but not installed"
-        return "$AUDIT_FAILURE"
-    fi
-
     return "$AUDIT_SUCCESS"
 }
 
@@ -2788,17 +2780,14 @@ validate_input() {
     return 0
 }
 
-# Securely read and validate user password
+# Securely read and validate user password with visual feedback
 # Features:
-# - Disables terminal echo
+# - Shows asterisks for each character typed
 # - Enforces minimum length
 # - Requires confirmation match
 # - Handles secure input mode
 read_secure_password() {
     local password password_confirm
-
-    # Enable secure input mode
-    secure_input_mode enable
 
     # Print recommendations to stderr to ensure they appear
     cat >&2 << EOF
@@ -2811,13 +2800,15 @@ Password recommendations:
 EOF
 
     while true; do
+        # Read password with asterisk feedback
         printf "Enter password: " >&2
-        read -r password
-        printf "\n" >&2  # Explicit newline after password input
+        password=$(read_password_with_asterisks)
+        printf "\n" >&2
 
+        # Read confirmation with asterisk feedback
         printf "Confirm password: " >&2
-        read -r password_confirm
-        printf "\n" >&2  # One newline after confirmation
+        password_confirm=$(read_password_with_asterisks)
+        printf "\n" >&2
 
         if [[ "$password" != "$password_confirm" ]]; then
             echo "Error: Passwords do not match" >&2
@@ -2838,10 +2829,123 @@ EOF
         break
     done
 
-    # Disable secure input mode
-    secure_input_mode disable
-
     printf "%s" "$password"
+}
+
+# Helper function to read password with asterisk visual feedback (simplified)
+# Uses timeout-based approach for better compatibility
+read_password_with_asterisks() {
+    local password=""
+    local char
+
+    # Disable echo
+    if command -v stty >/dev/null 2>&1; then
+        stty -echo 2>/dev/null
+    fi
+
+    printf "" >&2  # Ensure we're ready for input
+
+    while true; do
+        # Use read with timeout for better control
+        if read -r -n1 -t 0.1 char 2>/dev/null; then
+            # Check for Enter (empty char after newline)
+            if [[ -z "$char" ]]; then
+                break
+            fi
+
+            # Check for backspace
+            if [[ "$char" == $'\x7f' || "$char" == $'\x08' ]]; then
+                if [[ ${#password} -gt 0 ]]; then
+                    password="${password%?}"
+                    printf "\b \b" >&2
+                fi
+            else
+                # Regular character
+                password+="$char"
+                printf "*" >&2
+            fi
+        else
+            # Check if user pressed Enter by trying to read more
+            if read -r -n1 -t 0 remaining_char 2>/dev/null; then
+                if [[ "$remaining_char" == $'\n' || "$remaining_char" == $'\r' ]]; then
+                    break
+                else
+                    password+="$remaining_char"
+                    printf "*" >&2
+                fi
+            fi
+        fi
+    done
+
+    # Re-enable echo
+    if command -v stty >/dev/null 2>&1; then
+        stty echo 2>/dev/null
+    fi
+
+    echo "$password"
+}
+
+# Convert decimal to binary representation using native Bash arithmetic
+# Input: Decimal number, bit width (optional, default 8)
+# Output: Binary string with specified width
+decimal_to_binary() {
+    local decimal="$1"
+    local width="${2:-8}"
+    local binary=""
+    local num="$decimal"
+
+    # Handle zero case
+    if [[ $num -eq 0 ]]; then
+        # Generate a string of zeros with the specified width
+        local zeros=""
+        for ((i = 0; i < width; i++)); do
+            zeros+="0"
+        done
+        echo "$zeros"
+        return
+    fi
+
+    # Convert to binary using Bash arithmetic
+    while [[ $num -gt 0 ]]; do
+        binary="$((num % 2))$binary"
+        num=$((num / 2))
+    done
+
+    # Pad with leading zeros to specified width
+    while [[ ${#binary} -lt $width ]]; do
+        binary="0$binary"
+    done
+
+    echo "$binary"
+}
+
+# Convert binary to decimal using native Bash arithmetic
+# Input: Binary string
+# Output: Decimal number
+binary_to_decimal() {
+    local binary="$1"
+    local decimal=0
+    local power=1
+
+    # Remove any leading zeros to avoid syntax errors
+    binary="${binary#"${binary%%[!0]*}"}"
+
+    # Handle the case where binary is all zeros or empty
+    if [[ -z "$binary" ]]; then
+        echo "0"
+        return
+    fi
+
+    # Process from right to left using positional notation
+    for ((i = ${#binary} - 1; i >= 0; i--)); do
+        local bit="${binary:i:1}"
+        if [[ $bit -eq 1 ]]; then
+            decimal=$((decimal + power))
+        fi
+        power=$((power * 2))
+    done
+
+    echo "$decimal"
 }
 
 # Convert BIP39 words to binary representation
@@ -2861,8 +2965,8 @@ words_to_bits() {
                 break
             fi
         done
-        # Convert to 11-bit binary without bc
-        local bin=$(printf "%011d" "$(echo "obase=2;$index" | bc)")
+        # Convert to 11-bit binary using native Bash arithmetic
+        local bin=$(decimal_to_binary "$index" 11)
         binary+="$bin"
     done
 
@@ -2885,7 +2989,8 @@ bits_to_words() {
     for ((i = 0; i < ${#binary}; i += 11)); do
         local chunk="${binary:i:11}"
         if [[ ${#chunk} -eq 11 ]]; then
-            local index=$((2#$chunk))
+            # Use our safe binary_to_decimal function instead of $((2#...))
+            local index=$(binary_to_decimal "$chunk")
             [[ -n "$phrase" ]] && phrase+=" "
             phrase+="${WORDS[$index]}"
         fi
@@ -2914,12 +3019,12 @@ derive_keystream() {
         current_hash=$(echo -n "$current_hash" | openssl dgst -shake256 -xoflen "$byte_length" | sed 's/^.*= //')
     done
 
-    # Convert hex to binary
+    # Convert hex to binary using native Bash arithmetic
     local binary=""
     for ((i = 0; i < ${#current_hash}; i += 2)); do
         local hex_byte="${current_hash:i:2}"
         local dec=$((16#$hex_byte))
-        local bin=$(printf "%08d" "$(echo "obase=2;$dec" | bc)")
+        local bin=$(decimal_to_binary "$dec" 8)
         binary+="$bin"
     done
 
@@ -2956,11 +3061,11 @@ calculate_checksum_bits() {
     local binary_stream=""
     for ((i = 0; i < entropy_bits; i += 8)); do
         local byte="${entropy:i:8}"          # Extract 8 bits
-        local dec=$((2#$byte))               # Convert to decimal
+        local dec=$(binary_to_decimal "$byte")  # Convert using native function
 
-        # Validate the value of $dec
+        # Validate the value of dec
         if [[ $dec -ge 0 && $dec -le 255 ]]; then
-            # Try to add the byte to binary stream
+            # Add the byte to binary stream
             if ! binary_stream+=$(printf "\\x%02x" "$dec" 2>/dev/null); then
                 return 1
             fi
@@ -2974,11 +3079,8 @@ calculate_checksum_bits() {
     local first_byte=$(echo -n "$hash" | base64 -d | od -An -tx1 -N1 | tr -d ' \n')
     local dec_value=$((16#$first_byte))
 
-    # Convert to binary and extract checksum bits
-    local bin=""
-    for ((i = 7; i >= 0; i--)); do
-        bin+=$(( (dec_value >> i) & 1 ))
-    done
+    # Convert to binary using native function and extract checksum bits
+    local bin=$(decimal_to_binary "$dec_value" 8)
 
     echo "${bin:0:$checksum_bits}"
 }
@@ -3152,11 +3254,12 @@ secure_erase() {
     # Includes cryptographic, input, and processing variables
     local sensitive_vars=(
     # User input and sensitive data
-        "PASSWORD"              # User password
+        "password"              # User password
         "password_confirm"      # Password confirmation copy
         "input"                 # Input seed phrase
         "input_words"           # Seed phrase word array
         "result"                # Operation result
+        "result_phrase"         # Result phrase storage
     # XOR-specific variables
         "seed_bits"             # Binary representation of seed
         "keystream"             # Generated keystream
@@ -3165,10 +3268,13 @@ secure_erase() {
     # Cryptographic and processing variables
         "hash"                  # Temporary hash used in process
         "iterations"            # Number of encryption iterations
+        "byte_length"          # Byte length for keystream
+        "bit_length"            # Bit length for operations
     # Word processing variables
         "word"                  # Current word being processed
         "count"                 # Word count
         "phrase"                # Temporary phrase storage
+        "words"                 # Word array variable
     # Binary processing variables
         "binary"                # Binary string
         "chunk"                 # Binary chunk
@@ -3177,9 +3283,13 @@ secure_erase() {
         "hex_byte"              # Hex byte value
         "dec"                   # Decimal value
         "bin"                   # Binary representation
+        "decimal"               # Decimal conversion variable
+        "num"                   # Numeric variable
+        "power"                 # Power variable for binary conversion
+        "width"                 # Width parameter for binary conversion
     # Checksum variables
-        "entropy_bits"          # Bits de entropía
-        "checksum_bits"         # Bits de checksum
+        "entropy_bits"          # Entropy bits count
+        "checksum_bits"         # Checksum bits count
         "entropy"               # Entropy portion
         "checksum"              # Checksum portion
         "binary_stream"         # Stream for hashing
@@ -3195,6 +3305,9 @@ secure_erase() {
         "size"                  # Size variables
         "key"                   # Loop key for arrays
         "answer"                # User input for file overwrite
+        "bit"                   # Individual bit variable
+        "byte"                  # Byte variable
+        "content"               # File content variable
     # File and path variables
         "output_file"           # Output file path
         "file"                  # Input file path
@@ -3204,11 +3317,14 @@ secure_erase() {
         "os_name"               # Operating system name
         "available_memory"      # Available system memory
         "mask"                  # Umask value
-        "byte_length"           # Byte length for keystream
-        "bit_length"            # Bit length for operations
+    # Mode and operation variables
+        "silent_mode"           # Silent mode flag
     # Other function variables
         "var_name"              # Variable name in secure_erase
         "var"                   # Loop variable in cleanup
+        "word_count"            # Word count variable
+        "random_pattern"        # Random pattern for cleaning
+        "char"                  # Character input variable
     )
 
     umask 077
@@ -3225,6 +3341,7 @@ secure_erase() {
             word_lookup[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
             unset 'word_lookup[$key]'
         done
+        unset word_lookup
     fi
 
     # Clean invalid_words array if it exists
@@ -3233,18 +3350,27 @@ secure_erase() {
             invalid_words[$key]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
             unset 'invalid_words[$key]'
         done
+        unset invalid_words
     fi
 
-    # Unset ALL variables
-    unset ${sensitive_vars[@]}
-    unset password password_confirm input result hash iterations
-    unset seed_bits keystream result_bits current_hash
-    unset word_lookup invalid_words
-    unset word count phrase binary chunk
-    unset i j index size output_file file dir
-    unset os_name available_memory mask var_name var key
-    unset script_name byte_length bit_length
-    unset -f secure_erase
+    # Clean arrays used in processing
+    if declare -p input_words >/dev/null 2>&1; then
+        for ((i=0; i<${#input_words[@]}; i++)); do
+            input_words[$i]="$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | base64)"
+        done
+        unset input_words
+    fi
+
+    if declare -p words >/dev/null 2>&1; then
+        for ((i=0; i<${#words[@]}; i++)); do
+            words[$i]="$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | base64)"
+        done
+        unset words
+    fi
+
+    # Unset ALL variables including those not in the list
+    unset ${sensitive_vars[@]} 2>/dev/null
+    unset -f secure_erase 2>/dev/null
 
     # Clean command history
     clear_history
@@ -3282,8 +3408,6 @@ Usage:
     ${script_name} [OPTIONS]
 
 Options:
-    -e, --encrypt     Encryption mode (default)
-    -d, --decrypt     Decryption mode
     -f OUTPUT_FILE    Save output to specified file (will append .txt if needed)
     -s, --silent      Silent mode (no prompts, for scripting)
     --license         Show license and disclaimer
@@ -3291,11 +3415,13 @@ Options:
     -h, --help        Show this help message and exit
 
 Examples:
-    ${script_name} -e -f output.txt          # Encrypt and save to file
-    ${script_name} -d -f encrypted.txt       # Decrypt from file
+    ${script_name} -f output.txt             # Process phrase and save to file
     ${script_name} --license                 # View license and disclaimer
     ${script_name} --details                 # Learn how the cipher works
     ${script_name} -s < input.txt            # Process input file in silent mode
+
+Note: XOR encryption is symmetric - the same operation encrypts and decrypts.
+Use the same password and iterations to reverse the transformation.
 
 $COMPATIBILITY_INFO
 
@@ -3334,7 +3460,6 @@ main() {
     local silent_mode=0
     local password=""
     local input_words=()
-    local mode="encrypt"  # Default mode
 
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
@@ -3356,14 +3481,6 @@ main() {
                 silent_mode=1
                 shift
                 ;;
-            -e|--encrypt)
-                mode="encrypt"
-                shift
-                ;;
-            -d|--decrypt)
-                mode="decrypt"
-                shift
-                ;;
             *)
                 shift
                 ;;
@@ -3380,11 +3497,7 @@ main() {
     while true; do
         if [[ $silent_mode -eq 0 ]]; then
             echo ""
-            if [[ "$mode" == "encrypt" ]]; then
-                echo -n "Enter seed phrase or input file to encrypt: "
-            else
-                echo -n "Enter encrypted phrase or input file to decrypt: "
-            fi
+            echo -n "Enter seed phrase or input file to process: "
             read -r input
             echo
 
@@ -3417,20 +3530,18 @@ main() {
         fi
 
         # Verify checksum before processing
-        if [[ "$mode" == "encrypt" ]]; then
-            if verify_checksum "$input"; then
-                add_audit_message "$AUDIT_INFO" "Input seed phrase checksum verification: Valid"
-                echo "" >&2
-            else
-                add_audit_message "$AUDIT_WARNING" "Input seed phrase checksum verification: Invalid"
-                echo "" >&2
-            fi
-
-            # Display accumulated messages
-            for message in "${AUDIT_MESSAGES[@]}"; do
-                echo -e "$message" >&2
-            done
+        if verify_checksum "$input"; then
+            add_audit_message "$AUDIT_INFO" "Input seed phrase checksum verification: Valid"
+            echo "" >&2
+        else
+            add_audit_message "$AUDIT_WARNING" "Input seed phrase checksum verification: Invalid"
+            echo "" >&2
         fi
+
+        # Display accumulated messages
+        for message in "${AUDIT_MESSAGES[@]}"; do
+            echo -e "$message" >&2
+        done
 
         break
     done
@@ -3462,7 +3573,7 @@ main() {
         fi
     fi
 
-    # Process the phrase using XOR (same function for encrypt/decrypt)
+    # Process the phrase using XOR (symmetric operation)
     local result
     result=$(process_phrase_xor "$input" "$password" "$iterations")
 
@@ -3496,21 +3607,19 @@ main() {
         echo "$result"
     fi
 
-    # Verify checksum of result if decrypting
-    if [[ "$mode" == "decrypt" ]]; then
-        if verify_checksum "$result"; then
-            add_audit_message "$AUDIT_INFO" "Decrypted seed phrase checksum verification: Valid"
-            echo "" >&2
-        else
-            add_audit_message "$AUDIT_WARNING" "Decrypted seed phrase checksum verification: Invalid"
-            echo "" >&2
-        fi
-
-        # Display accumulated messages
-        for message in "${AUDIT_MESSAGES[@]}"; do
-            echo -e "$message" >&2
-        done
+    # Verify checksum of result
+    if verify_checksum "$result"; then
+        add_audit_message "$AUDIT_INFO" "Output seed phrase checksum verification: Valid"
+        echo "" >&2
+    else
+        add_audit_message "$AUDIT_WARNING" "Output seed phrase checksum verification: Invalid"
+        echo "" >&2
     fi
+
+    # Display accumulated messages
+    for message in "${AUDIT_MESSAGES[@]}"; do
+        echo -e "$message" >&2
+    done
 
     if [[ $silent_mode -eq 0 ]]; then
         echo ""
