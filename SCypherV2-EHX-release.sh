@@ -46,6 +46,16 @@ export LC_ALL=C.UTF-8
 # Version number for compatibility tracking
 readonly VERSION="2.0"
 
+# Amber CRT Theme Colors
+readonly COLOR_RESET='\033[0m'
+readonly COLOR_PRIMARY='\033[38;5;214m'       # Amber primary
+readonly COLOR_BRIGHT='\033[1;38;5;220m'      # Bright amber
+readonly COLOR_DIM='\033[38;5;172m'           # Dark orange
+readonly COLOR_WARNING='\033[38;5;228m'       # Warm yellow
+readonly COLOR_ERROR='\033[38;5;124m'         # Brick red
+readonly COLOR_FRAME='\033[38;5;240m'         # Dark gray
+readonly COLOR_SUCCESS='\033[1;32m'           # Green for success
+
 # Standard exit codes for program status
 readonly EXIT_SUCCESS=0
 readonly EXIT_ERROR=1
@@ -2625,7 +2635,7 @@ handle_error() {
     local error_message="$1"
 
     # Display error message
-    echo "Error: $error_message" >&2
+    echo -e "${COLOR_ERROR}✗ Error: $error_message${COLOR_RESET}" >&2
     echo "" >&2
 
     # Wait for user input
@@ -3393,9 +3403,29 @@ show_usage() {
     local script_name
     script_name=$(basename "$0")
 
-    cat << EOF
+    # Banner with ERGO ASCII art in amber colors
+    echo -e "${COLOR_BRIGHT}SCypher v${VERSION}${COLOR_RESET} ${COLOR_DIM}- XOR-based BIP39 Seed Cipher${COLOR_RESET}"
+    echo
+    echo -e "${COLOR_PRIMARY}                                  000000000"
+    echo -e "                              000000000000000000"
+    echo -e "                            000000          000000"
+    echo -e "                           000                  000"
+    echo -e "                          000     0000000000     000"
+    echo -e "                         000      0000000000      000"
+    echo -e "                         00        0000           000"
+    echo -e "                        000          0000          000"
+    echo -e "                        000          0000          000"
+    echo -e "                         000       0000            00"
+    echo -e "                         000      0000000000      000"
+    echo -e "                          000     0000000000     000"
+    echo -e "                           000                  000"
+    echo -e "                            000000          000000"
+    echo -e "                              000000000000000000"
+    echo -e "                                   000000000${COLOR_RESET}"
+    echo
 
-SCypher v${VERSION} - XOR-based BIP39 Seed Cipher
+    # Main content using cat (clean and professional)
+    cat << EOF
 A tool for encrypting/decrypting BIP39 seed phrases using XOR cipher with SHAKE-256
 
 Resources:
@@ -3424,26 +3454,6 @@ Note: XOR encryption is symmetric - the same operation encrypts and decrypts.
 Use the same password and iterations to reverse the transformation.
 
 $COMPATIBILITY_INFO
-
-EOF
-
-    cat << 'EOF'
-                                  000000000
-                              000000000000000000
-                            000000          000000
-                           000                  000
-                          000     0000000000     000
-                         000      0000000000      000
-                         00        0000           000
-                        000          0000          000
-                        000          0000          000
-                         000       0000            00
-                         000      0000000000      000
-                          000     0000000000     000
-                           000                  000
-                            000000          000000
-                              000000000000000000
-                                   000000000
 
 EOF
     exit "$EXIT_SUCCESS"
@@ -3497,7 +3507,8 @@ main() {
     while true; do
         if [[ $silent_mode -eq 0 ]]; then
             echo ""
-            echo -n "Enter seed phrase or input file to process: "
+            echo -e "${COLOR_PRIMARY}Enter seed phrase or input file to process:${COLOR_RESET}"
+            echo -n "> "
             read -r input
             echo
 
@@ -3597,15 +3608,17 @@ main() {
             exit "${EXIT_ERROR}"
         fi
 
-        echo "$result"
+        echo -e "${COLOR_SUCCESS}Result:${COLOR_RESET}"
+        echo -e "${COLOR_PRIMARY}$result${COLOR_RESET}"
         if [[ $silent_mode -eq 0 ]]; then
             echo ""
-            echo "Output saved to ${output_file}"
+            echo -e "${COLOR_SUCCESS}✓ Output saved to ${output_file}${COLOR_RESET}"
         fi
-    else
-        echo ""
-        echo "$result"
-    fi
+        else
+            echo ""
+            echo -e "${COLOR_SUCCESS}Result:${COLOR_RESET}"
+            echo -e "${COLOR_PRIMARY}$result${COLOR_RESET}"
+        fi
 
     # Verify checksum of result
     if verify_checksum "$result"; then
