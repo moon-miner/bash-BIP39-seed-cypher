@@ -3190,40 +3190,102 @@ xor_bits() {
     echo "$result"
 }
 
-# Calculate SHA256 hash and extract checksum bits
-# Input: Binary entropy string
-# Output: Checksum bits
 calculate_checksum_bits() {
     local entropy="$1"
     local entropy_bits=${#entropy}
     local checksum_bits=$((entropy_bits / 32))
 
-    # Convert binary to bytes for hashing
-    local binary_stream=""
-    for ((i = 0; i < entropy_bits; i += 8)); do
-        local byte="${entropy:i:8}"          # Extract 8 bits
-        local dec=$(binary_to_decimal "$byte")  # Convert using native function
+    # Convert binary to bytes for hashing - MÉTODO ORIGINAL SIMPLIFICADO
+    local binary_data=""
 
-        # Validate the value of dec
-        if [[ $dec -ge 0 && $dec -le 255 ]]; then
-            # Add the byte to binary stream
-            if ! binary_stream+=$(printf "\\x%02x" "$dec" 2>/dev/null); then
-                return 1
-            fi
+    # Process 8 bits at a time to form bytes
+    for ((i = 0; i < entropy_bits; i += 8)); do
+        local byte="${entropy:i:8}"
+
+        # Ensure byte has 8 bits (pad with zeros if necessary)
+        while [[ ${#byte} -lt 8 ]]; do
+            byte+="0"
+        done
+
+        # Convert binary byte to decimal
+        local decimal_value=$(binary_to_decimal "$byte")
+
+        # Validate decimal value is within byte range
+        if [[ $decimal_value -ge 0 && $decimal_value -le 255 ]]; then
+            # Convert decimal to hex and use echo -e to create binary data
+            local hex_value=$(printf "%02x" $decimal_value)
+            binary_data+="\\x$hex_value"
         else
+            echo "Error: Invalid byte value: $decimal_value" >&2
             return 1
         fi
     done
 
-    # Calculate SHA256 and get first byte
-    local hash=$(printf "%b" "$binary_stream" | openssl dgst -sha256 -binary | openssl enc -base64)
-    local first_byte=$(echo -n "$hash" | base64 -d | od -An -tx1 -N1 | tr -d ' \n')
-    local dec_value=$((16#$first_byte))
+    # Calculate SHA256 using echo -e (compatible method)
+    local hash_output
+    if ! hash_output=$(echo -e -n "$binary_data" | openssl dgst -sha256); then
+        echo "Error: SHA256 calculation failed" >&2
+        return 1
+    fi
 
-    # Convert to binary using native function and extract checksum bits
-    local bin=$(decimal_to_binary "$dec_value" 8)
+    # Extract hex hash from output (remove "SHA256(stdin)= " prefix)
+    local hash_hex="${hash_output##*= }"
 
-    echo "${bin:0:$checksum_bits}"
+    # Extract first checksum_bits from hash
+    local checksum_binary=""
+    local bits_needed=$checksum_bits
+    local hex_pos=0
+
+    while [[ $bits_needed -gt 0 && $hex_pos -lt ${#hash_hex} ]]; do
+        local hex_char="${hash_hex:$hex_pos:1}"
+        local hex_nibble
+
+        # Convert hex character to 4-bit binary
+        case "$hex_char" in
+            "0") hex_nibble="0000" ;;
+            "1") hex_nibble="0001" ;;
+            "2") hex_nibble="0010" ;;
+            "3") hex_nibble="0011" ;;
+            "4") hex_nibble="0100" ;;
+            "5") hex_nibble="0101" ;;
+            "6") hex_nibble="0110" ;;
+            "7") hex_nibble="0111" ;;
+            "8") hex_nibble="1000" ;;
+            "9") hex_nibble="1001" ;;
+            "a"|"A") hex_nibble="1010" ;;
+            "b"|"B") hex_nibble="1011" ;;
+            "c"|"C") hex_nibble="1100" ;;
+            "d"|"D") hex_nibble="1101" ;;
+            "e"|"E") hex_nibble="1110" ;;
+            "f"|"F") hex_nibble="1111" ;;
+            *)
+                echo "Error: Invalid hex character in hash: $hex_char" >&2
+                return 1
+                ;;
+        esac
+
+        # Add required bits
+        if [[ $bits_needed -ge 4 ]]; then
+            checksum_binary+="$hex_nibble"
+            bits_needed=$((bits_needed - 4))
+        else
+            # Only need some bits from nibble
+            checksum_binary+="${hex_nibble:0:$bits_needed}"
+            bits_needed=0
+        fi
+
+        hex_pos=$((hex_pos + 1))
+    done
+
+    echo "$checksum_binary"
+
+    # Securely clean sensitive variables from memory
+    binary_data="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 2>/dev/null || echo 'random_cleanup_data')"
+    hash_output="$(dd if=/dev/urandom bs=64 count=1 2>/dev/null | base64 2>/dev/null || echo 'random_cleanup_data')"
+    hash_hex="$(dd if=/dev/urandom bs=64 count=1 2>/dev/null | base64 2>/dev/null || echo 'random_cleanup_data')"
+    checksum_binary="$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | base64 2>/dev/null || echo 'random_cleanup_data')"
+
+    unset binary_data hash_output hash_hex checksum_binary hex_nibble hex_value decimal_value byte
 }
 
 # Verify BIP39 checksum
@@ -3420,6 +3482,8 @@ secure_erase() {
         "count"                 # Word count
         "phrase"                # Temporary phrase storage
         "words"                 # Word array variable
+        "word_lookup"           # BIP39 word lookup table (associative array)
+        "invalid_words"         # Array of invalid BIP39 words found
     # Binary processing variables
         "binary"                # Binary string
         "chunk"                 # Binary chunk
@@ -3432,6 +3496,10 @@ secure_erase() {
         "num"                   # Numeric variable
         "power"                 # Power variable for binary conversion
         "width"                 # Width parameter for binary conversion
+        "hex_value"             # Hexadecimal value during byte conversion
+        "decimal_value"         # Decimal value converted from binary byte
+        "hex_char"              # Individual hexadecimal character from hash
+        "hex_nibble"            # 4-bit hexadecimal nibble converted to binary
     # Checksum variables
         "entropy_bits"          # Entropy bits count
         "checksum_bits"         # Checksum bits count
@@ -3442,6 +3510,10 @@ secure_erase() {
         "dec_value"             # Decimal value of byte
         "expected_checksum"     # Expected checksum
         "correct_checksum"      # Corrected checksum
+        "binary_data"           # Binary data constructed for OpenSSL hashing
+        "hash_output"           # Raw output from OpenSSL SHA256 command
+        "hash_hex"              # Extracted hexadecimal hash from OpenSSL output
+        "checksum_binary"       # Final checksum in binary format
     # Temporary and loop variables
         "temp"                  # Temporary variable
         "i"                     # Loop counter
@@ -3453,6 +3525,7 @@ secure_erase() {
         "bit"                   # Individual bit variable
         "byte"                  # Byte variable
         "content"               # File content variable
+        "remaining_char"        # Remaining character in password input
     # File and path variables
         "output_file"           # Output file path
         "file"                  # Input file path
