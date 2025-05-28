@@ -44,7 +44,7 @@ export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
 # Version number for compatibility tracking
-readonly VERSION="2.0"
+readonly VERSION="2.0-ErgoHack-X"
 
 # Amber CRT Theme Colors
 readonly COLOR_RESET='\033[0m'
@@ -2618,13 +2618,17 @@ setup_signal_handlers() {
 }
 
 show_license() {
+    clear_screen
     echo "$LICENSE_TEXT"
-    exit "$EXIT_SUCCESS"
+    echo ""
+    read -p "Press enter to continue..."
 }
 
 show_details() {
+    clear_screen
     echo "$DETAILS_TEXT"
-    exit "$EXIT_SUCCESS"
+    echo ""
+    read -p "Press enter to continue..."
 }
 
 # Clear screen using portable ANSI escape sequences
@@ -2639,6 +2643,8 @@ show_main_menu() {
 
     # Banner with existing ASCII art (preserved exactly)
     echo -e "${COLOR_BRIGHT}SCypher v${VERSION}${COLOR_RESET} ${COLOR_DIM}- XOR-based BIP39 Seed Cipher${COLOR_RESET}"
+    echo -e "${COLOR_DIM}                        ErgoHack X Competition Release${COLOR_RESET}"
+
     echo
     echo -e "${COLOR_PRIMARY}                                  000000000"
     echo -e "                              000000000000000000"
@@ -3613,6 +3619,8 @@ show_usage() {
 
     # Banner with existing ASCII art (preserved exactly)
     echo -e "${COLOR_BRIGHT}SCypher v${VERSION}${COLOR_RESET} ${COLOR_DIM}- XOR-based BIP39 Seed Cipher${COLOR_RESET}"
+    echo -e "${COLOR_DIM}                        ErgoHack X Competition Release${COLOR_RESET}"
+
     echo
     echo -e "${COLOR_PRIMARY}                                  000000000"
     echo -e "                              000000000000000000"
@@ -3720,11 +3728,15 @@ main() {
         validate_output_file "$output_file"
     fi
 
-    # Menu system logic - Show interactive menu if no CLI args and not silent mode
+# Menu system logic - Show interactive menu if no CLI args and not silent mode
     if [[ $show_menu_now -eq 1 && $silent_mode -eq 0 ]]; then
         # Show interactive menu system
         handle_main_menu
         # After menu selection, continue with main logic below
+    elif [[ $# -eq 0 && $silent_mode -eq 0 ]]; then
+        # If no CLI args and not silent, but show_menu_now is 0, still show menu
+        # This handles the case when returning from previous operations
+        handle_main_menu
     fi
 
     # Interactive input phase
@@ -3878,8 +3890,9 @@ main() {
 
     if [[ $silent_mode -eq 0 ]]; then
         echo ""
-        read -p "Press enter to clear screen and continue..."
+        read -p "Press enter to return to main menu..."
         clear_screen
+        return 0  # Return to allow menu loop to continue
     fi
 }
 
@@ -3906,5 +3919,15 @@ trap 'cleanup' EXIT HUP PIPE INT TERM
 # - System compatibility verification
 # - Core dump protection
 # - Signal handlers
-# - Main program execution
-main "$@"
+# - Main program execution with menu loop
+while true; do
+    main "$@"
+
+    # If silent mode or CLI args provided, exit after one execution
+    if [[ $# -gt 0 ]] || grep -q "\-s\|\-\-silent" <<< "$*" 2>/dev/null; then
+        break
+    fi
+
+    # Reset SHOW_MENU for subsequent iterations
+    SHOW_MENU=$SHOW_MENU_DEFAULT
+done
