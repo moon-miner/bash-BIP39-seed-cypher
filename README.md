@@ -8,7 +8,7 @@
 
 **A secure and reversible XOR-based cipher for BIP39 seed phrases that maintains complete BIP39 compatibility.**
 
-🌐 **[Try it online](https://scypher.vercel.app/)** | 📥 **[Download](#installation)** | 📖 **[Documentation](#how-it-works)**
+🌐 **[Try it online](https://scypher.vercel.app/)** | 📥 **[Download](#installation)** | 📖 **[Documentation](https://github.com/moon-miner/bash-BIP39-seed-cypher/tree/main/documentation/english)**
 
 ---
 
@@ -97,7 +97,7 @@ This opens the interactive menu where you can encrypt/decrypt seed phrases step 
 3. Create a strong password
 4. Choose number of iterations (more = more secure, slower)
 5. Get your encrypted seed phrase (also valid BIP39)
-6. To decrypt: use your encrypted seed phrase as input, and enter the same password and number of iterations you used to encrypt it.
+6. To decrypt: repeat with same password and iterations
 
 ---
 
@@ -118,6 +118,8 @@ SCypher v2.0 uses **XOR encryption** with a cryptographically secure keystream:
 - **Deterministic**: Same input + password always produces same output
 - **No patterns**: Encrypted output appears statistically random
 - **Perfect reversibility**: Zero data loss in transformation
+
+📚 **[Read detailed technical documentation](https://github.com/moon-miner/bash-BIP39-seed-cypher/tree/main/documentation/english)**
 
 ---
 
