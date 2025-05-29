@@ -97,7 +97,7 @@ This opens the interactive menu where you can encrypt/decrypt seed phrases step 
 3. Create a strong password
 4. Choose number of iterations (more = more secure, slower)
 5. Get your encrypted seed phrase (also valid BIP39)
-6. To decrypt: repeat with same password and iterations
+6. To decrypt: use your encrypted seed phrase as input, and enter the same password and number of iterations you used to encrypt it.
 
 ---
 
