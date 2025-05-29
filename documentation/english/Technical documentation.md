@@ -373,6 +373,39 @@ flowchart TD
     style N fill:#fce4ec
 ```
 
+## Data Flow Diagrams
+
+### Complete Processing Pipeline
+
+```mermaid
+flowchart TD
+    A[Input: BIP39 Seed Phrase] --> B[Split into Words]
+    B --> C[Validate Word Count]
+    C --> D[Check BIP39 Wordlist]
+    D --> E[Verify Original Checksum]
+    
+    E --> F[Convert Words to Binary]
+    F --> G[Extract Entropy Portion]
+    
+    H[Password Input] --> I[Derive Keystream]
+    I --> J[SHAKE-256 Iterations]
+    J --> K[Generate Binary Keystream]
+    
+    G --> L[XOR: Entropy ⊕ Keystream]
+    K --> L
+    
+    L --> M[Encrypted Entropy]
+    M --> N[Calculate New Checksum]
+    N --> O[Combine: Entropy + Checksum]
+    O --> P[Convert Binary to Words]
+    P --> Q[Output: Encrypted BIP39 Seed]
+    
+    style A fill:#f0f8ff,stroke:#333,stroke-width:2px,color:#000
+    style Q fill:#f0fff0,stroke:#333,stroke-width:2px,color:#000
+    style L fill:#fff8dc,stroke:#333,stroke-width:2px,color:#000
+    style N fill:#fdf5e6,stroke:#333,stroke-width:2px,color:#000
+```
+
 ### Memory Management Flow
 
 ```mermaid
@@ -396,9 +429,9 @@ graph LR
     C --> D
     F --> G
     
-    style G fill:#ffcdd2
-    style H fill:#ffcdd2
-    style I fill:#ffcdd2
+    style G fill:#ffe4e1,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#ffe4e1,stroke:#333,stroke-width:2px,color:#000
+    style I fill:#ffe4e1,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ---
