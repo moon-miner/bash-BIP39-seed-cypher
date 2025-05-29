@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 
 # SCypher - XOR-based BIP39 Seed Cipher (v2.0)
@@ -63,6 +62,9 @@ readonly EXIT_ERROR=1
 # Menu system configuration - Controls when to show interactive menu
 readonly SHOW_MENU_DEFAULT=1        # Show menu by default when no CLI args
 SHOW_MENU=$SHOW_MENU_DEFAULT        # Current menu state (can be modified by args)
+
+# Control variable for post-processing menu flow
+RETURN_TO_MAIN_MENU=0
 
 # File handling and security constants
 readonly PERMISSIONS=600
@@ -2631,10 +2633,30 @@ show_details() {
     read -p "Press enter to continue..."
 }
 
-# Clear screen using portable ANSI escape sequences
-# Does not rely on 'clear' command for compatibility
+# Clear screen using multiple methods for complete cleanup
+# Combines ANSI escape sequences with terminal buffer clearing
 clear_screen() {
+    # Method 1: Clear screen and move cursor to top-left
     echo -e "\033[2J\033[H"
+
+    # Method 2: Clear scrollback buffer (works on most modern terminals)
+    echo -e "\033[3J"
+
+    # Method 3: Reset terminal state
+    echo -e "\033c"
+
+    # Method 4: Use clear command if available (fallback)
+    if command -v clear >/dev/null 2>&1; then
+        clear 2>/dev/null || true
+    fi
+
+    # Method 5: Fill screen with empty lines to push old content up
+    for ((i=0; i<50; i++)); do
+        echo ""
+    done
+
+    # Final positioning
+    echo -e "\033[H"
 }
 
 # Display main menu with banner
@@ -2708,6 +2730,140 @@ show_usage_examples() {
     read -p "Press enter to continue..."
 }
 
+# Handle post-processing menu after encrypt/decrypt operation
+# Provides options to save result, return to menu, or exit
+handle_post_processing_menu() {
+    local result="$1"
+
+    while true; do
+        echo ""
+        echo -e "${COLOR_SUCCESS}What would you like to do next?${COLOR_RESET}"
+        echo "1. Save result to file"
+        echo "2. Return to main menu"
+        echo "3. Exit"
+        echo ""
+        read -p "Select option [1-3]: " post_choice
+        echo ""
+
+        case "$post_choice" in
+            1)
+                handle_save_result "$result"
+                # If save was successful and user chose to return to main menu, break
+                if [[ $RETURN_TO_MAIN_MENU -eq 1 ]]; then
+                    RETURN_TO_MAIN_MENU=0  # Reset flag
+                    return 0
+                fi
+                ;;
+            2)
+                clear_screen
+                return 0  # Return to main menu
+                ;;
+            3|"")
+                echo -e "${COLOR_DIM}Exiting...${COLOR_RESET}"
+                sleep 1
+                clear_screen
+                cleanup
+                exit "$EXIT_SUCCESS"
+                ;;
+            *)
+                echo -e "${COLOR_ERROR}Invalid option. Please select 1-3.${COLOR_RESET}"
+                echo ""
+                read -p "Press enter to continue..."
+                ;;
+        esac
+    done
+}
+
+# Handle saving result to file with validation and post-save options
+handle_save_result() {
+    local result="$1"
+    local save_file=""
+
+    while true; do
+        echo -e "${COLOR_PRIMARY}Enter filename to save result:${COLOR_RESET}"
+        echo -n "> "
+        read -r save_file
+        echo ""
+
+        # Validate input
+        if [[ -z "$save_file" ]]; then
+            echo -e "${COLOR_ERROR}Error: Filename cannot be empty${COLOR_RESET}"
+            echo ""
+            read -p "Press enter to try again..."
+            echo ""
+            continue
+        fi
+
+        # Auto-append .txt extension if not present
+        if [[ "$save_file" != *"${EXTENSION}" ]]; then
+            save_file="${save_file}${EXTENSION}"
+        fi
+
+        # Validate output file location and permissions
+        if ! validate_output_file "$save_file"; then
+            continue
+        fi
+
+        # Attempt to save the file
+        if ! echo "$result" > "$save_file" 2>/dev/null; then
+            echo -e "${COLOR_ERROR}Error: Failed to write to output file${COLOR_RESET}"
+            echo ""
+            read -p "Press enter to try again..."
+            echo ""
+            continue
+        fi
+
+        # Set secure file permissions
+        if ! chmod "${PERMISSIONS}" "$save_file" 2>/dev/null; then
+            echo -e "${COLOR_ERROR}Error: Failed to set file permissions${COLOR_RESET}"
+            echo ""
+            read -p "Press enter to try again..."
+            echo ""
+            continue
+        fi
+
+        # Success - show confirmation
+        echo -e "${COLOR_SUCCESS}✓ Result successfully saved to ${save_file}${COLOR_RESET}"
+        break
+    done
+
+    # Post-save menu
+    handle_post_save_menu
+}
+
+# Handle menu options after successful file save
+handle_post_save_menu() {
+    while true; do
+        echo ""
+        echo -e "${COLOR_SUCCESS}File saved successfully. What would you like to do next?${COLOR_RESET}"
+        echo "1. Return to main menu"
+        echo "2. Exit"
+        echo ""
+        read -p "Select option [1-2]: " save_choice
+        echo ""
+
+        case "$save_choice" in
+            1)
+                clear_screen
+                RETURN_TO_MAIN_MENU=1  # Set flag to return to main menu
+                return 0
+                ;;
+            2|"")
+                echo -e "${COLOR_DIM}Exiting...${COLOR_RESET}"
+                sleep 1
+                clear_screen
+                cleanup
+                exit "$EXIT_SUCCESS"
+                ;;
+            *)
+                echo -e "${COLOR_ERROR}Invalid option. Please select 1-2.${COLOR_RESET}"
+                echo ""
+                read -p "Press enter to continue..."
+                ;;
+        esac
+    done
+}
+
 # Handle main menu input and navigation
 handle_main_menu() {
     while true; do
@@ -2725,6 +2881,8 @@ handle_main_menu() {
                 ;;
             3|"")
                 echo -e "${COLOR_DIM}Exiting...${COLOR_RESET}"
+                sleep 1
+                clear_screen
                 cleanup
                 exit "$EXIT_SUCCESS"
                 ;;
@@ -3739,6 +3897,9 @@ main() {
         handle_main_menu
     fi
 
+    # Clear previous audit messages for fresh operation
+        initialize_audit
+
     # Interactive input phase
     local input
     while true; do
@@ -3888,11 +4049,9 @@ main() {
         echo -e "$message" >&2
     done
 
+    # Post-processing options menu (only in interactive mode)
     if [[ $silent_mode -eq 0 ]]; then
-        echo ""
-        read -p "Press enter to return to main menu..."
-        clear_screen
-        return 0  # Return to allow menu loop to continue
+        handle_post_processing_menu "$result"
     fi
 }
 
