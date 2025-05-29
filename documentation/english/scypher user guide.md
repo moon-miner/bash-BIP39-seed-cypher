@@ -180,7 +180,7 @@ graph TD
 
 5. **Choose iterations** (higher = more secure but slower):
    ```
-   Enter number of iterations (minimum 1): 1000
+   Enter number of iterations (minimum 1): 55
    ```
 
 6. **View your encrypted seed phrase**:
