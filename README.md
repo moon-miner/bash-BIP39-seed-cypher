@@ -121,7 +121,7 @@ SCypher v2.0 uses **XOR encryption** with a cryptographically secure keystream:
 - **No patterns**: Encrypted output appears statistically random
 - **Perfect reversibility**: Zero data loss in transformation
 
-📚 **[Read detailed technical documentation](https://github.com/moon-miner/bash-BIP39-seed-cypher/tree/main/documentation/english)**
+📚 **[Read detailed technical documentation](https://github.com/moon-miner/bash-BIP39-seed-cypher/tree/main/documentation/english)** | 🎬 **[View Interactive Presentation](https://scypher.vercel.app/scypher_presentation.html)**
 
 ---
 
