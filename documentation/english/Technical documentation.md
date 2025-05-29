@@ -367,39 +367,6 @@ flowchart TD
     O --> P[Convert Binary to Words]
     P --> Q[Output: Encrypted BIP39 Seed]
     
-    style A fill:#e1f5fe
-    style Q fill:#c8e6c9
-    style L fill:#fff3e0
-    style N fill:#fce4ec
-```
-
-## Data Flow Diagrams
-
-### Complete Processing Pipeline
-
-```mermaid
-flowchart TD
-    A[Input: BIP39 Seed Phrase] --> B[Split into Words]
-    B --> C[Validate Word Count]
-    C --> D[Check BIP39 Wordlist]
-    D --> E[Verify Original Checksum]
-    
-    E --> F[Convert Words to Binary]
-    F --> G[Extract Entropy Portion]
-    
-    H[Password Input] --> I[Derive Keystream]
-    I --> J[SHAKE-256 Iterations]
-    J --> K[Generate Binary Keystream]
-    
-    G --> L[XOR: Entropy ⊕ Keystream]
-    K --> L
-    
-    L --> M[Encrypted Entropy]
-    M --> N[Calculate New Checksum]
-    N --> O[Combine: Entropy + Checksum]
-    O --> P[Convert Binary to Words]
-    P --> Q[Output: Encrypted BIP39 Seed]
-    
     style A fill:#f0f8ff,stroke:#333,stroke-width:2px,color:#000
     style Q fill:#f0fff0,stroke:#333,stroke-width:2px,color:#000
     style L fill:#fff8dc,stroke:#333,stroke-width:2px,color:#000
