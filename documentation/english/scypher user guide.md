@@ -140,7 +140,7 @@ If you see the help message with ASCII art banner, installation was successful.
 
 ```mermaid
 graph TD
-    A[Start SCypher] --> B{Interactive Menu}
+    A[Start SCypher] --> B{Interactive Menu?}
     B -->|Yes| C[Select Encrypt/Decrypt]
     B -->|No| D[Command Line Mode]
     
