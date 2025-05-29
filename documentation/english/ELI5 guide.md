@@ -22,7 +22,7 @@ Mixed Result = 🟤🟫🔶🔷🟤🟫🔶🔷🟤🟫🔶🔷
 
 **Step 2: Turn it back into words**
 ```
-Encrypted Seed = "crypto matrix future digital wallet secure random generate"
+Encrypted Seed = "title print auction tail road popular stove milk sort alarm napkin baby"
 ```
 
 **To get your original back:** Use the same password with the encrypted seed, and it unmixes back to your original! 🎉
@@ -58,12 +58,12 @@ Select option [1-3]: 1
 ### 3️⃣ Enter Your Information
 ```
 Enter seed phrase or input file to process:
-> abandon ability able about above absent absorb abstract absurd abuse access accident
+> abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
 
 Enter password: ********
 Confirm password: ********
 
-Enter number of iterations (minimum 1): 1000
+Enter number of iterations (minimum 1): 55
 
 Result:
 crypto matrix future digital wallet secure random generate entropy blockchain system trust
@@ -84,10 +84,10 @@ Enter seed phrase or input file to process:
 Enter password: ******** (SAME password)
 Confirm password: ********
 
-Enter number of iterations (minimum 1): 1000 (SAME number)
+Enter number of iterations (minimum 1): 55 (SAME number)
 
 Result:
-abandon ability able about above absent absorb abstract absurd abuse access accident
+abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
 ```
 
 **🎯 You get your original seed back!**
@@ -120,35 +120,6 @@ abandon ability able about above absent absorb abstract absurd abuse access acci
 - Lose your password (no recovery possible)
 - Change the iteration count (you won't get your original back)
 - Use this for testing with real money at first
-
----
-
-## 🎯 Real-World Example
-
-**Scenario:** You want to write down your seed phrase but make it less obvious what it is.
-
-**Before SCypher:**
-```
-Your real seed: "abandon ability able about above absent absorb abstract absurd abuse access accident"
-❌ Obviously a crypto seed phrase if someone finds it
-```
-
-**After SCypher:**
-```
-Encrypted seed: "crypto matrix future digital wallet secure random generate entropy blockchain system trust"
-✅ Looks like any other seed phrase - provides plausible deniability
-```
-
-**When you need it:**
-1. Get your encrypted seed from secure storage
-2. Run SCypher with same password and iterations  
-3. Get your real seed back
-
-**⚠️ IMPORTANT: Never store ANY seed phrase online, even encrypted ones! Always use offline storage like:**
-- Paper backups in secure locations
-- Metal seed phrase plates
-- Hardware wallets
-- Encrypted USB drives (kept offline)
 
 ---
 
