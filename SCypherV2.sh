@@ -3623,6 +3623,7 @@ secure_erase() {
     # User input and sensitive data
         "password"              # User password
         "password_confirm"      # Password confirmation copy
+        "remaining_char"        # Remaining character in secure password input
         "input"                 # Input seed phrase
         "input_words"           # Seed phrase word array
         "result"                # Operation result
@@ -3631,6 +3632,9 @@ secure_erase() {
         "menu_choice"           # Main menu selection
         "help_choice"           # Help menu selection
         "show_menu_now"         # Menu display flag
+        "post_choice"           # Post-processing menu selection
+        "save_choice"           # Post-save menu selection
+        "save_file"             # Save file path
     # XOR-specific variables
         "seed_bits"             # Binary representation of seed
         "keystream"             # Generated keystream
@@ -3641,6 +3645,12 @@ secure_erase() {
         "iterations"            # Number of encryption iterations
         "byte_length"          # Byte length for keystream
         "bit_length"            # Bit length for operations
+        "hex_string"            # Hexadecimal string in keystream derivation
+        "byte_data"             # Binary data for checksum calculation
+        "hash_result"           # Hash result from checksum operations
+        "answer"                # User answer for file overwrite confirmations
+        "bit_a"                 # First bit in XOR operations
+        "bit_b"                 # Second bit in XOR operations
     # Word processing variables
         "word"                  # Current word being processed
         "count"                 # Word count
@@ -3651,8 +3661,6 @@ secure_erase() {
     # Binary processing variables
         "binary"                # Binary string
         "chunk"                 # Binary chunk
-        "bit_a"                 # First bit in XOR
-        "bit_b"                 # Second bit in XOR
         "hex_byte"              # Hex byte value
         "dec"                   # Decimal value
         "bin"                   # Binary representation
@@ -3664,6 +3672,8 @@ secure_erase() {
         "decimal_value"         # Decimal value converted from binary byte
         "hex_char"              # Individual hexadecimal character from hash
         "hex_nibble"            # 4-bit hexadecimal nibble converted to binary
+        "bits_needed"           # Bits needed counter for checksum calculation
+        "hex_pos"               # Position in hexadecimal string during processing
     # Checksum variables
         "entropy_bits"          # Entropy bits count
         "checksum_bits"         # Checksum bits count
@@ -3689,16 +3699,26 @@ secure_erase() {
         "bit"                   # Individual bit variable
         "byte"                  # Byte variable
         "content"               # File content variable
-        "remaining_char"        # Remaining character in password input
     # File and path variables
         "output_file"           # Output file path
         "file"                  # Input file path
         "dir"                   # Directory path
         "script_name"           # Name of the script
+        "file_content"          # Content read from input files
+        "dir"                   # Directory path for output files
     # System check variables
         "os_name"               # Operating system name
         "available_memory"      # Available system memory
         "mask"                  # Umask value
+        "basic_status"          # Basic requirements audit status
+        "memory_status"         # Memory check audit status
+        "openssl_status"        # OpenSSL validation audit status
+        "critical_failures"     # Critical failures counter
+        "message"               # System and audit messages
+        "prefix"                # Message prefixes for audit system
+    # Signal handling variables
+        "sig"                   # Signal name in signal handling loops
+        "supported_signals"     # Array of supported system signals
     # Mode and operation variables
         "silent_mode"           # Silent mode flag
     # Other function variables
@@ -3733,6 +3753,14 @@ secure_erase() {
             unset 'invalid_words[$key]'
         done
         unset invalid_words
+    fi
+
+    # Clean supported_signals array if it exists
+    if declare -p supported_signals >/dev/null 2>&1; then
+        for ((i=0; i<${#supported_signals[@]}; i++)); do
+            supported_signals[$i]="$(dd if=/dev/urandom bs=8 count=1 2>/dev/null | base64)"
+        done
+        unset supported_signals
     fi
 
     # Clean arrays used in processing
