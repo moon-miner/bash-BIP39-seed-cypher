@@ -103,8 +103,8 @@ abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon 
 
 ### Iteration Tips
 - **More iterations = More security**
-- **Start with 1,000** for testing
-- **Use 10,000+** for real seeds
+- **Start with 50** for testing
+- **Use 150+** for real seeds
 - **Remember the exact number** - you need it to decrypt
 
 ---
