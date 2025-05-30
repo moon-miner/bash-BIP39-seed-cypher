@@ -2532,27 +2532,28 @@ protect_against_coredumps() {
     return 0
 }
 
-# Configure terminal for secure password input
+# Configure terminal for secure password input with enhanced error recovery
 # Manages:
-# - Terminal echo settings
-# - Signal trap setup/cleanup
+# - Terminal echo settings with complete state restoration
+# - Signal trap setup/cleanup with error handling
 # - Fallback handling for unsupported terminals
+# - Graceful recovery from interrupted operations
 secure_input_mode() {
     local action=$1  # 'enable' or 'disable'
     local stty_available=false
     local terminal_supported=false
+    local original_state=""
 
-    # Check if stty is available
+    # Check if stty is available and capture original state
     if command -v stty >/dev/null 2>&1; then
         stty_available=true
-        # Check if terminal supports it
-        if stty -echo 2>/dev/null; then
-            stty echo
+        # Capture current terminal state for restoration
+        if original_state=$(stty -g 2>/dev/null); then
             terminal_supported=true
         fi
     fi
 
-    # If not supported, warn only once
+    # If not supported, warn only once per session
     if [[ "$action" == "enable" ]] && ! $terminal_supported; then
         if ! $stty_available; then
             echo "Note: Enhanced input protection unavailable - stty not found" >&2
@@ -2564,29 +2565,88 @@ secure_input_mode() {
 
     if $terminal_supported; then
         if [[ "$action" == "enable" ]]; then
+            # Store original state globally for restoration
+            export ORIGINAL_TERMINAL_STATE="$original_state"
             stty -echo 2>/dev/null
-            trap 'secure_input_mode disable' EXIT INT TERM
+            trap 'secure_input_mode disable; restore_terminal_state' EXIT INT TERM
         else
-            stty echo 2>/dev/null
+            # Always restore to known good state
+            if [[ -n "${ORIGINAL_TERMINAL_STATE:-}" ]]; then
+                stty "$ORIGINAL_TERMINAL_STATE" 2>/dev/null
+            else
+                stty echo 2>/dev/null
+            fi
         fi
     fi
 
     return 0
 }
 
-# Set up signal handlers with system-specific compatibility checks
-# Handles: TSTP (terminal stop), WINCH (window change), USR1, USR2
+# Emergency terminal state restoration function with enhanced recovery
+restore_terminal_state() {
+    # Multiple restoration attempts for maximum reliability
+
+    # Method 1: Restore saved state if available
+    if [[ -n "${ORIGINAL_TERMINAL_STATE:-}" ]]; then
+        stty "$ORIGINAL_TERMINAL_STATE" 2>/dev/null && return 0
+        unset ORIGINAL_TERMINAL_STATE
+    fi
+
+    # Method 2: Force common safe settings
+    stty echo 2>/dev/null
+    stty icanon 2>/dev/null
+    stty -raw 2>/dev/null
+
+    # Method 3: Full terminal reset
+    stty sane 2>/dev/null
+
+    # Method 4: Reset terminal control sequences
+    printf "\033[?25h" 2>/dev/null  # Show cursor
+    printf "\033[0m" 2>/dev/null    # Reset all attributes
+    printf "\033c" 2>/dev/null      # Reset terminal
+
+    # Method 5: Final verification
+    if ! stty -a 2>/dev/null | grep -q "echo"; then
+        # Last resort: force echo on
+        printf "\033[12l" 2>/dev/null  # Disable echo override
+        stty echo 2>/dev/null
+    fi
+}
+
+# Set up signal handlers with enhanced terminal protection
+# Handles: TSTP (terminal stop), WINCH (window change), USR1, USR2, INT, TERM
 setup_signal_handlers() {
     local supported_signals=()
     local message=""
     local os_name
     os_name=$(uname -s)
 
-    # Check which signals can be handled by the system
+    # Enhanced signal handler that ensures terminal restoration
+    emergency_cleanup() {
+        # Force terminal restoration
+        restore_terminal_state
+        stty sane 2>/dev/null || true
+        stty echo 2>/dev/null || true
+
+        # Clear any stuck input modes
+        printf "\033[?25h" 2>/dev/null || true  # Show cursor
+        printf "\033[0m" 2>/dev/null || true    # Reset colors
+
+        # Run normal cleanup
+        cleanup
+
+        # Exit cleanly
+        exit 130  # Standard exit code for Ctrl+C
+    }
+
+    # Set up comprehensive signal traps
+    trap 'emergency_cleanup' INT TERM EXIT
+    trap 'emergency_cleanup' HUP PIPE QUIT
+
+    # Try to handle additional signals if supported
     for sig in TSTP WINCH USR1 USR2; do
-        if trap '' $sig 2>/dev/null; then
+        if trap 'restore_terminal_state' $sig 2>/dev/null; then
             supported_signals+=($sig)
-            trap '' $sig
         fi
     done
 
@@ -2607,7 +2667,7 @@ setup_signal_handlers() {
             fi
             ;;
         *)
-            message="Running with basic signal protection on $os_name"
+            message="Running with enhanced signal protection on $os_name"
             ;;
     esac
 
@@ -3059,6 +3119,74 @@ validate_bip39_words() {
         unset word_lookup word count
 
         clear_screen
+        return 1
+    fi
+
+    # Clean lookup table even on success
+    unset word_lookup
+    return 0
+}
+
+# Enhanced word count validation with improved UX
+# Does not clear screen, provides better error context
+validate_word_count_improved() {
+    local -a words=("$@")
+    local count=${#words[@]}
+
+    for valid_count in "${VALID_WORD_COUNTS[@]}"; do
+        if [[ $count -eq $valid_count ]]; then
+            return 0
+        fi
+    done
+
+    echo ""
+    echo -e "${COLOR_ERROR}Error: Invalid number of words detected${COLOR_RESET}"
+    echo -e "${COLOR_WARNING}Expected number of words: ${VALID_WORD_COUNTS[*]}${COLOR_RESET}"
+    echo -e "${COLOR_WARNING}Found: $count words${COLOR_RESET}"
+    echo ""
+
+    return 1
+}
+
+# Enhanced BIP39 word validation with improved UX
+# Does not clear screen, provides better error context
+validate_bip39_words_improved() {
+    local -a words=("$@")
+    declare -A word_lookup invalid_words
+    local word count=0
+
+    for word in "${WORDS[@]}"; do
+        word_lookup["$word"]=1
+    done
+
+    # Check each word and store invalid ones
+    for word in "${words[@]}"; do
+        if [[ -z "${word_lookup[$word]:-}" ]]; then
+            invalid_words["$word"]=1
+            ((count++))
+        fi
+    done
+
+    # If invalid words found, show them all
+    if ((count > 0)); then
+        echo ""
+        echo -e "${COLOR_ERROR}Error: Invalid BIP39 words detected${COLOR_RESET}"
+        echo -e "${COLOR_WARNING}The following words are not in the BIP39 wordlist:${COLOR_RESET}"
+        for word in "${!invalid_words[@]}"; do
+            echo -e "  ${COLOR_ERROR}- $word${COLOR_RESET}"
+        done
+        echo ""
+        echo -e "${COLOR_DIM}Please verify your seed phrase and try again.${COLOR_RESET}"
+        echo -e "${COLOR_DIM}You can find the complete BIP39 word list in the script source.${COLOR_RESET}"
+        echo ""
+
+        # Clean sensitive data before returning
+        for word in "${!invalid_words[@]}"; do
+            invalid_words[$word]="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)"
+            unset 'invalid_words[$word]'
+        done
+        unset word_lookup word count
+
         return 1
     fi
 
@@ -3914,7 +4042,7 @@ main() {
         validate_output_file "$output_file"
     fi
 
-# Menu system logic - Show interactive menu if no CLI args and not silent mode
+    # Menu system logic - Show interactive menu if no CLI args and not silent mode
     if [[ $show_menu_now -eq 1 && $silent_mode -eq 0 ]]; then
         # Show interactive menu system
         handle_main_menu
@@ -3928,11 +4056,17 @@ main() {
     # Clear previous audit messages for fresh operation
         initialize_audit
 
-    # Interactive input phase
+    # Interactive input phase with improved UX
     local input
+    local input_attempt=1
     while true; do
         if [[ $silent_mode -eq 0 ]]; then
-            echo ""
+            # Show attempt number if multiple tries
+            if [[ $input_attempt -gt 1 ]]; then
+                echo -e "${COLOR_WARNING}Attempt #${input_attempt}${COLOR_RESET}"
+                echo ""
+            fi
+
             echo -e "${COLOR_PRIMARY}Enter seed phrase or input file to process:${COLOR_RESET}"
             echo -n "> "
             read -r input
@@ -3946,11 +4080,13 @@ main() {
                     input=$(read_words_from_file "$input")
                 else
                     # Input looks like a file but doesn't exist
-                    echo "" >&2
-                    echo "Error: File '$input' not found" >&2
-                    echo "" >&2
+                    echo -e "${COLOR_ERROR}Error: File '$input' not found${COLOR_RESET}" >&2
+                    echo ""
+                    echo -e "${COLOR_DIM}Previous input: ${COLOR_PRIMARY}$input${COLOR_RESET}"
+                    echo ""
                     read -p "Press enter to try again..."
                     echo ""
+                    input_attempt=$((input_attempt + 1))
                     continue
                 fi
             fi
@@ -3964,32 +4100,72 @@ main() {
 
         # Validate input format AFTER file processing
         if ! validate_input "$input"; then
-            echo "" >&2
-            read -p "Press enter to clear screen and try again..."
-            clear_screen
+            if [[ $silent_mode -eq 0 ]]; then
+                echo ""
+                echo -e "${COLOR_DIM}Previous input: ${COLOR_PRIMARY}$input${COLOR_RESET}"
+                echo ""
+                read -p "Press enter to try again..."
+                echo ""
+                input_attempt=$((input_attempt + 1))
+            else
+                handle_error "Invalid input format"
+            fi
             continue
         fi
 
         # Convert input to array
         read -ra input_words <<< "$input"
 
-        # Validate word count
-        if ! validate_word_count "${input_words[@]}"; then
+        # Validate word count with improved UX
+        if ! validate_word_count_improved "${input_words[@]}"; then
+            if [[ $silent_mode -eq 0 ]]; then
+                echo ""
+                echo -e "${COLOR_DIM}Previous input: ${COLOR_PRIMARY}$input${COLOR_RESET}"
+                echo ""
+                read -p "Press enter to try again..."
+                echo ""
+                input_attempt=$((input_attempt + 1))
+            else
+                handle_error "Invalid word count"
+            fi
             continue
         fi
 
-        # Validate BIP39 words
-        if ! validate_bip39_words "${input_words[@]}"; then
+        # Validate BIP39 words with improved UX
+        if ! validate_bip39_words_improved "${input_words[@]}"; then
+            if [[ $silent_mode -eq 0 ]]; then
+                echo ""
+                echo -e "${COLOR_DIM}Previous input: ${COLOR_PRIMARY}$input${COLOR_RESET}"
+                echo ""
+                read -p "Press enter to try again..."
+                echo ""
+                input_attempt=$((input_attempt + 1))
+            else
+                handle_error "Invalid BIP39 words"
+            fi
             continue
         fi
 
-        # Verify checksum before processing
+        # Verify checksum before processing - STRICT VALIDATION
         if verify_checksum "$input"; then
             add_audit_message "$AUDIT_INFO" "Input seed phrase checksum verification: Valid"
             echo "" >&2
         else
-            add_audit_message "$AUDIT_WARNING" "Input seed phrase checksum verification: Invalid"
-            echo "" >&2
+            # REJECT invalid checksum phrases
+            if [[ $silent_mode -eq 0 ]]; then
+                echo ""
+                echo -e "${COLOR_ERROR}Error: Invalid BIP39 checksum detected${COLOR_RESET}"
+                echo -e "${COLOR_WARNING}The seed phrase has an incorrect checksum and is not valid${COLOR_RESET}"
+                echo ""
+                echo -e "${COLOR_DIM}Previous input: ${COLOR_PRIMARY}$input${COLOR_RESET}"
+                echo ""
+                read -p "Press enter to try again..."
+                echo ""
+                input_attempt=$((input_attempt + 1))
+                continue
+            else
+                handle_error "Invalid BIP39 checksum"
+            fi
         fi
 
         # Display accumulated messages
