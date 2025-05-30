@@ -2270,9 +2270,11 @@ initialize_audit() {
 
 # Verify basic system requirements
 verify_basic_requirements() {
-    # Check root privileges
+    # Check root privileges (silent check, no warning message)
     if [ "$(id -u)" -ne 0 ]; then
-        add_audit_message "$AUDIT_WARNING" "Running without root privileges. Core dump protection and ulimit restrictions will be disabled.\nFor full security, run with: sudo bash $0"
+        # Running without root - core dump protection will be limited
+        # This is acceptable for most use cases, no warning needed
+        :  # No-op command
     fi
 
     return "$AUDIT_SUCCESS"
