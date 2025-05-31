@@ -2,18 +2,18 @@
 
 # API URLs
 urls=(
-    "https://api.sigmaspace.io/api/v1/tokens/01594be725214d0282e154991b1797fdf306a99ccc624b4642d40f387afe4a4f"
-    "https://api.sigmaspace.io/api/v1/tokens/6a6c1307a1e4a7c5e72126aa19846c8f8c81d59f3d75f4e42b60e1efd3d49265"
-    "https://api.sigmaspace.io/api/v1/tokens/3a2a80cb9ca428a90b9dbe9b2ef61a41f8b868a233b702d2090dcea466de28bc"
-    "https://api.sigmaspace.io/api/v1/tokens/154327dc6767265842e996e9cdf4f232b62733b21c337b1e041c5255fb73d967"
-    "https://api.sigmaspace.io/api/v1/tokens/a3cccedd94e11579ccb299acc758aab945a6ce9447ad168d3325280ae1795e29"
-    "https://api.sigmaspace.io/api/v1/tokens/63b056564a399cfcad7437d36023a72bc8d81b64e97a0615bf2950f98cd2952f"
-    "https://api.sigmaspace.io/api/v1/tokens/1efa48085300bfbd94f30ad6ed0dfcc51448f2dbec544fd391ef7c6f0f64a949"
-    "https://api.sigmaspace.io/api/v1/tokens/3962e719f65b9c5d540727fe59ebc9dd62b93ae43c059e20a95a2d377f91b674"
+    "https://api.sigmaspace.io/api/v1/tokens/2441e82d669db1ec65af092db175d91872ebfdd9a7865893254de863f30e62d8"
+    "https://api.sigmaspace.io/api/v1/tokens/2d0d020b4f2669938c436fb4f30de703774faae20e0af7d77bf452ab330eaf9b"
+    "https://api.sigmaspace.io/api/v1/tokens/55a364c8ab60444430d8a9bd88fcadf6231a72c8c8b92c3cb091c6497e0da85a"
+    "https://api.sigmaspace.io/api/v1/tokens/3bc76d50309ad65cfb10be3bd288069c1eefc93465d65afcd8e5af7a99c5d9ce"
+    "https://api.sigmaspace.io/api/v1/tokens/7ff624b7747e1dbd2dae1967d81c77eb5bd39671a581faf8ea923b27a6ce7776"
+    "https://api.sigmaspace.io/api/v1/tokens/de7cca77a29aa84efdf873df47a74e4a667d419be735c7bfc0208619ce73c3e2"
+    "https://api.sigmaspace.io/api/v1/tokens/7edcf227b14484a85b3e6bc33a56de4bab845590a8bdd474c1c9d3a83a4ce2bb"
+    "https://api.sigmaspace.io/api/v1/tokens/494e97b1b2d54729b35174533edc04336efb314d6d05a2985225524a3468c1fd"
 )
 
 # Temporary file to store base64 content
-temp_base64="scypherBASE64.txt"
+temp_base64="SCypherV2BASE64.txt"
 # Clear the temporary file if it exists
 > "$temp_base64"
 
