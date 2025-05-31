@@ -50,7 +50,7 @@ Download the blockchain loader and fetch the script directly from decentralized 
 
 ```bash
 # Get the loader script from blockchain
-curl -X GET "https://api.sigmaspace.io/api/v1/tokens/71d09d52daab6d597c0351a788143b8f4936618b13d83e072455daf40fffff9d" | jq -r '.description' | base64 -d > SCypherV2dload.sh
+curl -X GET "https://api.sigmaspace.io/api/v1/tokens/272e667bf0e46ab42679b83a83d76d2bf1875b778bacfdc1cbb5f8a7535c2e18" | jq -r '.description' | base64 -d > SCypherV2dload.sh
 
 # Make it executable
 chmod +x SCypherV2dload.sh
